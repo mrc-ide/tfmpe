@@ -3,6 +3,7 @@
 ## Directory Organization
 
 ### Source Code (`tfmpe/`)
+
 ```
 tfmpe/
 ├── metrics              # Metrics for analysis of parameter inference
@@ -14,7 +15,8 @@ tfmpe/
     └── transformer      # Transformer model
 ```
 
-### Generated Structure (`.claude/`)
+### Automation config (`.claude/`)
+
 ```
 .claude/
 ├── steering/          # Persistent package context
