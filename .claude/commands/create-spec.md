@@ -53,7 +53,7 @@ You are helping create a new feature specification through the complete workflow
    - Initialize empty requirements.md, design.md, and tasks.md files
 
 2. **Load Context Documents**
-   - Look for .claude/steering/product.md (product vision and goals)
+   - Look for .claude/steering/package.md (package vision and goals)
    - Look for .claude/steering/tech.md (technical standards and patterns)
    - Look for .claude/steering/structure.md (project structure conventions)
    - Load available steering documents to guide the entire workflow
@@ -74,9 +74,9 @@ You are helping create a new feature specification through the complete workflow
 
 1. **Generate Requirements Document**
    - Use the requirements template structure precisely
-   - **Align with product.md**: Ensure requirements support the product vision and goals
+   - **Align with package.md**: Ensure requirements support the package vision and goals
    - Consider edge cases and technical constraints
-   - **Reference steering documents**: Note how requirements align with product vision
+   - **Reference steering documents**: Note how requirements align with package vision
 
 ## PHASE 2: Design Creation
 
