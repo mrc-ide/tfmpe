@@ -145,7 +145,7 @@ You are helping create a new feature specification through the complete workflow
 ## Universal Rules
 
 - Only create ONE spec at a time
-- Always use kebab-case for feature names
+- Always use snake_case for feature names
 - Follow exact template structures in the specified template files
 - Do not proceed without explicit user approval between phases
 - Do not skip phases - complete Requirements → Design → Tasks
