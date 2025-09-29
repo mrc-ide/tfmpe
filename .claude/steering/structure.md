@@ -15,6 +15,13 @@ tfmpe/
     └── transformer      # Transformer model
 ```
 
+#### Legacy code
+
+This is a re-write of https://github.com/giovannic/sbijax, which you can find in `sfmpe_legacy`.
+
+ * Please explore that directory for implementation details which work
+ * Please do not introduce legacy code which violates the best practices for this repository
+
 ### Automation config (`.claude/`)
 
 ```
