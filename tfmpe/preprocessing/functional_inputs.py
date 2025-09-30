@@ -6,8 +6,7 @@ from typing import Dict, Any, Optional
 import jax.numpy as jnp
 from jaxtyping import Array
 
-from tfmpe.preprocessing.flatten import flatten_leaf
-
+from .flatten import flatten_leaf
 
 def flatten_functional_inputs(
     functional_inputs: Optional[Dict[str, Array]],

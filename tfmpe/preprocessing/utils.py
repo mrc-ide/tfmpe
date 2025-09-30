@@ -2,9 +2,7 @@
 
 import math
 from typing import Tuple
-
 from jaxtyping import Array
-
 
 def size_along_axes(arr: Array, axes: Tuple[int, ...]) -> int:
     """

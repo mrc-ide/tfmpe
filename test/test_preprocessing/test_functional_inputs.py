@@ -2,8 +2,6 @@
 
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array
-
 
 @pytest.fixture
 def simple_tokens_slices():

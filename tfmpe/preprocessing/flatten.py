@@ -7,7 +7,6 @@ from jaxtyping import Array
 
 from tfmpe.preprocessing.utils import size_along_axes
 
-
 def flatten_leaf(
     leaf: Array,
     sample_ndims: int,
