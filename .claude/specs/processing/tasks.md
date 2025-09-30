@@ -112,11 +112,11 @@ Each task:
     - _Leverage: sfmpe_legacy/sfmpe/util/dataloader.py (lines 225-432)_
     - _Requirements: 3.1-3.5, 4.1-4.3_
 
-- [ ] 4.0 Implement functional input utilities with tests
+- [x] 4.0 Implement functional input utilities with tests
   - Purpose: Create and test functional input flattening
   - _Requirements: 3.1-3.4_
 
-  - [ ] 4.1 Create functional input tests in test/test_preprocessing/test_functional_inputs.py
+  - [x] 4.1 Create functional input tests in test/test_preprocessing/test_functional_inputs.py
     - File: test/test_preprocessing/test_functional_inputs.py
     - Test flattening with matching shapes
     - Test padding with sentinel value (-1e8)
@@ -126,7 +126,7 @@ Each task:
     - _Leverage: sfmpe_legacy/examples/hierarchical_brownian.py (lines 104-112)_
     - _Requirements: 3.1-3.4_
 
-  - [ ] 4.2 Create functional input utilities in tfmpe/preprocessing/functional_inputs.py
+  - [x] 4.2 Create functional input utilities in tfmpe/preprocessing/functional_inputs.py
     - File: tfmpe/preprocessing/functional_inputs.py
     - Port `_flatten_index()` from legacy, rename to `flatten_functional_inputs()`
     - Adapt to work with unified slices dict (not separate theta/y)
