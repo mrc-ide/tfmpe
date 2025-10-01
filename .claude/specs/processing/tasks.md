@@ -86,11 +86,11 @@ Each task:
     - _Leverage: sfmpe_legacy/sfmpe/util/dataloader.py (lines 570-609)_
     - _Requirements: 2.2, 2.5_
 
-- [ ] 3.0 Implement mask generation utilities with tests
+- [x] 3.0 Implement mask generation utilities with tests
   - Purpose: Create and test attention/padding mask generation
   - _Requirements: 3.1-3.5, 4.1-4.3_
 
-  - [ ] 3.1 Create mask generation tests in test/test_preprocessing/test_masks.py
+  - [x] 3.1 Create mask generation tests in test/test_preprocessing/test_masks.py
     - File: test/test_preprocessing/test_masks.py
     - Test self-attention mask with `local` independence
     - Test cross-attention mask with `cross` independence
@@ -101,7 +101,7 @@ Each task:
     - _Leverage: sfmpe_legacy/examples/hierarchical_gaussian.py (lines 48-52)_
     - _Requirements: 3.1-3.5, 4.1-4.3_
 
-  - [ ] 3.2 Create mask generation utilities in tfmpe/preprocessing/masks.py
+  - [x] 3.2 Create mask generation utilities in tfmpe/preprocessing/masks.py
     - File: tfmpe/preprocessing/masks.py
     - Port `build_self_attention_mask()` from legacy
     - Port `build_cross_attention_mask()` from legacy
