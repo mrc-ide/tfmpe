@@ -1,5 +1,4 @@
 """Pipelines for processing datasets for use with the estimators."""
-
 from tfmpe.preprocessing.flatten import (
     flatten_leaf,
     flatten_pytree,
@@ -10,6 +9,12 @@ from tfmpe.preprocessing.reconstruct import (
     decode_pytree,
     decode_pytree_keys,
 )
+from tfmpe.preprocessing.masks import (
+    build_self_attention_mask,
+    build_cross_attention_mask,
+    build_padding_mask
+)
+
 from tfmpe.preprocessing.masks import (
     build_self_attention_mask,
     build_cross_attention_mask,

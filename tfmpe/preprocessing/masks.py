@@ -5,7 +5,7 @@ from independence specifications and slice metadata.
 """
 
 from math import prod
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import jax.numpy as jnp
 import numpy as np

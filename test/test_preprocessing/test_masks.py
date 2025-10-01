@@ -69,7 +69,6 @@ def test_self_attention_mask_local_independence(simple_slices):
     assert mask.shape == (5, 5)
     assert jnp.allclose(mask, expected)
 
-
 def test_self_attention_mask_cross_independence(simple_slices):
     """Test self-attention mask with cross independence."""
     independence = {
@@ -91,7 +90,6 @@ def test_self_attention_mask_cross_independence(simple_slices):
 
     assert mask.shape == (5, 5)
     assert jnp.allclose(mask, expected)
-
 
 def test_self_attention_mask_cross_local_with_functional_inputs(
     simple_slices
@@ -118,7 +116,6 @@ def test_self_attention_mask_cross_local_with_functional_inputs(
     assert mask.shape == (5, 5)
     assert jnp.allclose(mask, expected)
 
-
 def test_self_attention_mask_cross_local_diagonal(simple_slices):
     """Test cross-local mask with diagonal (None idx_map)."""
     # When idx_map is None, it's diagonal only
@@ -141,7 +138,6 @@ def test_self_attention_mask_cross_local_diagonal(simple_slices):
 
     assert mask.shape == (5, 5)
     assert jnp.allclose(mask, expected)
-
 
 def test_self_attention_mask_combined_rules(
     simple_slices,
@@ -168,7 +164,6 @@ def test_self_attention_mask_combined_rules(
 
     assert mask.shape == (5, 5)
     assert jnp.allclose(mask, expected)
-
 
 def test_cross_local_multidim_event_shapes():
     """Test cross_local with multi-dimensional event shapes."""
@@ -333,7 +328,6 @@ def test_cross_attention_mask_basic():
     assert mask.shape == (2, 3)
     assert jnp.allclose(mask, expected)
 
-
 def test_cross_attention_mask_with_cross_local():
     """Test cross-attention mask with cross_local independence."""
     query_slices = {
@@ -371,6 +365,7 @@ def test_cross_attention_mask_with_cross_local():
     ], dtype=np.float32)
 
     assert mask.shape == (2, 2)
+
     assert jnp.allclose(mask, expected)
 
 
