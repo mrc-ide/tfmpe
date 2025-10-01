@@ -280,7 +280,6 @@ def test_cross_local_different_dimensions():
     # Site 4: theta[12:15] -> obs[4, 9]
     expected[12:15, 4] = 1.0
     expected[12:15, 9] = 1.0
-
     assert jnp.allclose(theta_obs, expected)
 
 
