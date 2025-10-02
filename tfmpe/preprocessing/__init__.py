@@ -14,6 +14,7 @@ from tfmpe.preprocessing.masks import (
     build_cross_attention_mask,
     build_padding_mask
 )
+from tfmpe.preprocessing.tokens import Tokens
 
 __all__ = [
     "flatten_leaf",
@@ -24,5 +25,6 @@ __all__ = [
     "decode_pytree_keys",
     "build_self_attention_mask",
     "build_cross_attention_mask",
-    "build_padding_mask"
+    "build_padding_mask",
+    "Tokens",
 ]
