@@ -138,11 +138,11 @@ Each task:
 
 ### Phase 2: Unified Interface
 
-- [ ] 5.0 Implement Tokens class basic functionality with tests
+- [x] 5.0 Implement Tokens class basic functionality with tests
   - Purpose: Create core Tokens class with creation and decoding
   - _Requirements: 1.1-1.5, 2.1-2.5_
 
-  - [ ] 5.1 Create Tokens basic tests in test/test_preprocessing/test_tokens_basic.py
+  - [x] 5.1 Create Tokens basic tests in test/test_preprocessing/test_tokens_basic.py
     - File: test/test_preprocessing/test_tokens_basic.py
     - Test `from_pytree()` with simple hierarchical structure
     - Test all fields populated correctly (data, labels, masks, slices)
@@ -153,7 +153,7 @@ Each task:
     - _Leverage: test/conftest.py for fixtures_
     - _Requirements: 1.1-1.5, 2.1-2.5_
 
-  - [ ] 5.2 Create Tokens class in tfmpe/preprocessing/tokens.py
+  - [x] 5.2 Create Tokens class in tfmpe/preprocessing/tokens.py
     - File: tfmpe/preprocessing/tokens.py
     - Define `Tokens` dataclass with all fields from design
     - Implement `from_pytree()` classmethod
