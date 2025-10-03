@@ -8,7 +8,10 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
-from tfmpe.preprocessing import decode_pytree, decode_pytree_keys
+from tfmpe.preprocessing.reconstruct import (
+    decode_pytree,
+    decode_pytree_keys
+)
 
 
 def test_decode_pytree_full():

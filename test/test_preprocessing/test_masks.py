@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from tfmpe.preprocessing import (
+from tfmpe.preprocessing.masks import (
     build_self_attention_mask,
     build_cross_attention_mask,
     build_padding_mask

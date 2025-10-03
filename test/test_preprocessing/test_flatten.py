@@ -8,7 +8,6 @@ import jax.numpy as jnp
 import pytest
 from tfmpe.preprocessing import flatten_leaf, flatten_pytree, update_flat_array
 
-
 @pytest.mark.parametrize(
     "sample_ndims,event_shape,batch_shape,max_batch_size",
     [
@@ -71,7 +70,6 @@ def test_flatten_leaf_shapes_and_padding(
         assert jnp.allclose(
             result[..., batch_size:], pad_value
         )
-
 
 def test_flatten_pytree_simple():
     """Test flatten_pytree with simple 2-key PyTree."""
@@ -213,6 +211,7 @@ def test_update_flat_array():
     }
 
     # Update 'b' with new values
+    # Shape should be (*event_shape, *batch_shape) = (1, 1)
     new_b_values = jnp.array([[99.0]])  # (1, 1)
     updated_array = update_flat_array(
         flat_array, slices_dict, 'b', new_b_values
@@ -249,16 +248,84 @@ def test_update_flat_array_multiple_keys():
     }
 
     # Update both keys
+    # Shapes: (*event, *batch)
     updated = update_flat_array(
-        flat_array, slices_dict, 'x', jnp.array([[10.0]])
+        flat_array, slices_dict, 'x', jnp.array([[10.0]])  # (1, 1)
     )
     updated = update_flat_array(
-        updated, slices_dict, 'y', jnp.array([[20.0, 30.0]])
+        updated, slices_dict, 'y', jnp.array([[20.0], [30.0]])  # (2, 1)
     )
 
     # Check both updates applied
     assert jnp.allclose(updated[0, 0], 10.0)
     assert jnp.allclose(updated[1:3, 0], jnp.array([20.0, 30.0]))
+
+
+def test_update_flat_array_multi_dim_event():
+    """Test update_flat_array with multi-dimensional event shape."""
+    # Flat array with a 2x2 event shape flattened
+    # Key 'matrix' has event_shape=(2, 2), batch_shape=(1,)
+    flat_array = jnp.array([[1.0, 2.0, 3.0, 4.0]]).T
+
+    slices_dict = {
+        'matrix': {
+            'offset': 0,
+            'event_shape': (2, 2),
+            'batch_shape': (1,)
+        }
+    }
+
+    # New values: shape (*event_shape, *batch_shape) = (2, 2, 1)
+    new_matrix = jnp.array([[[10.0], [20.0]], [[30.0], [40.0]]])
+
+    updated = update_flat_array(
+        flat_array, slices_dict, 'matrix', new_matrix
+    )
+
+    # Should be flattened as [10, 20, 30, 40]
+    assert jnp.allclose(
+        updated[:, 0], jnp.array([10.0, 20.0, 30.0, 40.0])
+    )
+
+
+def test_update_flat_array_with_sample_dims():
+    """Test update_flat_array with sample dimensions."""
+    # Flat array with sample dimension
+    # Shape: (2 samples, 3 events, 1 batch)
+    flat_array = jnp.array([
+        [[1.0], [2.0], [3.0]],  # sample 0
+        [[4.0], [5.0], [6.0]]   # sample 1
+    ])
+
+    slices_dict = {
+        'a': {
+            'offset': 0,
+            'event_shape': (2,),
+            'batch_shape': (1,)
+        },
+        'b': {
+            'offset': 2,
+            'event_shape': (1,),
+            'batch_shape': (1,)
+        }
+    }
+
+    # Update 'a' across all samples
+    # Shape: (2 samples, 2 events, 1 batch)
+    new_a = jnp.array([
+        [[10.0], [20.0]],  # sample 0
+        [[30.0], [40.0]]   # sample 1
+    ])
+
+    updated = update_flat_array(flat_array, slices_dict, 'a', new_a)
+
+    # Check sample 0
+    assert jnp.allclose(updated[0, 0:2, 0], jnp.array([10.0, 20.0]))
+    assert jnp.allclose(updated[0, 2, 0], 3.0)  # 'b' unchanged
+
+    # Check sample 1
+    assert jnp.allclose(updated[1, 0:2, 0], jnp.array([30.0, 40.0]))
+    assert jnp.allclose(updated[1, 2, 0], 6.0)  # 'b' unchanged
 
 
 def test_flatten_pytree_with_sample_dims():

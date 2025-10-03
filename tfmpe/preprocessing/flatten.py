@@ -192,7 +192,7 @@ def update_flat_array(
         Key to update
     new_values : Array
         New values for the key, with shape matching the original
-        (batch_shape, *event_shape)
+        (*sample_dims, *event_shape, *batch_shape)
 
     Returns
     -------
@@ -220,20 +220,28 @@ def update_flat_array(
     batch_shape = slice_info['batch_shape']
 
     # Flatten new values
-    # new_values has shape (*batch_shape, *event_shape)
-    batch_axes = tuple(range(len(batch_shape)))
-    event_axes = tuple(range(len(batch_shape), len(new_values.shape)))
-    batch_size = size_along_axes(new_values, batch_axes)
-    event_size = size_along_axes(new_values, event_axes)
+    # new_values has shape (*sample_dims, *event_shape, *batch_shape)
+    sample_ndims = len(new_values.shape) - len(event_shape) - len(batch_shape)
+    event_ndims = len(event_shape)
+    batch_ndims = len(batch_shape)
 
-    # Reshape to (event_size, batch_size)
+    event_axes = tuple(range(sample_ndims, sample_ndims + event_ndims))
+    batch_axes = tuple(range(
+        sample_ndims + event_ndims,
+        sample_ndims + event_ndims + batch_ndims
+    ))
+    event_size = size_along_axes(new_values, event_axes)
+    batch_size = size_along_axes(new_values, batch_axes)
+
+    # Reshape to (*sample_dims, event_size, batch_size)
+    sample_shape = new_values.shape[:sample_ndims]
     new_values_flat = new_values.reshape(
-        (batch_size,) + event_shape
-    ).reshape((batch_size, event_size)).T
+        sample_shape + (event_size, batch_size)
+    )
 
     # Update the flat array
     # Handle both with and without sample dimensions
-    if flat_array.ndim == 2:
+    if sample_ndims == 0:
         # Shape: (total_event, max_batch)
         updated = flat_array.at[
             offset:offset + event_size,
@@ -241,7 +249,6 @@ def update_flat_array(
         ].set(new_values_flat)
     else:
         # Shape: (*sample_dims, total_event, max_batch)
-        # For now, assume updating all samples identically
         updated = flat_array.at[
             ...,
             offset:offset + event_size,

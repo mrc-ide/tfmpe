@@ -10,10 +10,11 @@ from typing import Any, Dict, List, Optional, Tuple
 import jax.numpy as jnp
 from jaxtyping import Array
 
-from .flatten import flatten_pytree
+from .flatten import flatten_pytree, update_flat_array
 from .functional_inputs import flatten_functional_inputs
-from .masks import build_self_attention_mask
+from .masks import build_cross_attention_mask, build_self_attention_mask
 from .reconstruct import decode_pytree, decode_pytree_keys
+from .token_view import TokenView
 
 FUNCTIONAL_INPUT_PAD_VALUE = -1e8
 
@@ -57,6 +58,7 @@ class Tokens:
     slices: Dict[str, Dict[str, Any]]
     label_map: Dict[str, int]
     key_order: List[str]
+    independence: Optional[Dict[str, Any]] = None
 
     @property
     def sample_shape(self) -> Tuple[int, ...]:
@@ -176,7 +178,8 @@ class Tokens:
             functional_inputs=func_inputs_flat,
             slices=slices,
             label_map=label_map,
-            key_order=key_order
+            key_order=key_order,
+            independence=independence
         )
 
     def decode(self, flat_array: Optional[Array] = None) -> Dict[str, Array]:
@@ -232,4 +235,140 @@ class Tokens:
             self.slices,
             self.sample_shape,
             keys
+        )
+
+    def select_tokens(self, keys: List[str]) -> TokenView:
+        """
+        Create view selecting specified keys.
+
+        Returns a TokenView that provides slices, labels, and masks
+        for only the selected keys without copying data.
+
+        Parameters
+        ----------
+        keys : List[str]
+            Keys to include in the view
+
+        Returns
+        -------
+        TokenView
+            View into this Tokens object with only selected keys
+
+        Raises
+        ------
+        KeyError
+            If any key in keys is not present in this Tokens object
+        """
+        return TokenView(parent=self, selected_keys=keys)
+
+    def cross_attention_mask(
+        self,
+        query_view: TokenView,
+        key_view: TokenView
+    ) -> Array:
+        """
+        Generate cross-attention mask between query and key tokens.
+
+        Uses independence specification to zero out prohibited
+        connections.
+
+        Parameters
+        ----------
+        query_view : TokenView
+            TokenView for query tokens
+        key_view : TokenView
+            TokenView for key/value tokens
+
+        Returns
+        -------
+        Array
+            Cross-attention mask with shape
+            (n_query_tokens, n_key_tokens)
+        """
+        # Use re-indexed slices from TokenViews
+        independence = self.independence if self.independence is not None else {}
+        return build_cross_attention_mask(
+            query_view.slices,
+            key_view.slices,
+            independence
+        )
+
+    def with_values(self, **key_values: Array) -> 'Tokens':
+        """
+        Create new Tokens with specified keys replaced by new values.
+
+        The new values are re-flattened and inserted at the correct
+        offsets in the unified array.
+
+        Parameters
+        ----------
+        **key_values : Array
+            Keyword arguments mapping key names to new value arrays
+
+        Returns
+        -------
+        Tokens
+            New Tokens object with updated values
+
+        Raises
+        ------
+        KeyError
+            If any key is not present in this Tokens object
+        ValueError
+            If any new value has incompatible shape
+
+        Examples
+        --------
+        >>> new_tokens = tokens.with_values(mu=new_mu_samples)
+        >>> new_tokens = tokens.with_values(
+        ...     mu=new_mu,
+        ...     sigma=new_sigma
+        ... )
+        """
+        # Validate all keys exist
+        for key in key_values:
+            if key not in self.key_order:
+                raise KeyError(
+                    f"Key '{key}' not found. "
+                    f"Available keys: {self.key_order}"
+                )
+
+        # Start with current data
+        new_data = self.data
+
+        # Update each key
+        for key, new_value in key_values.items():
+            # Validate shape matches expected
+            slice_info = self.slices[key]
+            expected_shape = (
+                self.sample_shape +
+                slice_info['event_shape'] +
+                slice_info['batch_shape']
+            )
+
+            if new_value.shape != expected_shape:
+                raise ValueError(
+                    f"Shape mismatch for key '{key}': "
+                    f"expected {expected_shape}, got {new_value.shape}"
+                )
+
+            # Update the flat array
+            new_data = update_flat_array(
+                new_data,
+                self.slices,
+                key,
+                new_value
+            )
+
+        # Create new Tokens with updated data
+        return Tokens(
+            data=new_data,
+            labels=self.labels,
+            self_attention_mask=self.self_attention_mask,
+            padding_mask=self.padding_mask,
+            functional_inputs=self.functional_inputs,
+            slices=self.slices,
+            label_map=self.label_map,
+            key_order=self.key_order,
+            independence=self.independence
         )
