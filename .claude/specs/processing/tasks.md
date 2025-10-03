@@ -163,11 +163,11 @@ Each task:
     - _Leverage: tfmpe/preprocessing/flatten.py, tfmpe/preprocessing/reconstruct.py, tfmpe/preprocessing/masks.py_
     - _Requirements: 1.1-1.5, 2.1-2.5_
 
-- [ ] 6.0 Implement Tokens dynamic functionality with tests
+- [x] 6.0 Implement Tokens dynamic functionality with tests
   - Purpose: Add dynamic slicing and value override methods
   - _Requirements: 1.1-1.3, 3.1-3.5_
 
-  - [ ] 6.1 Create Tokens dynamic tests in test/test_preprocessing/test_tokens_dynamic.py
+  - [x] 6.1 Create Tokens dynamic tests in test/test_preprocessing/test_tokens_dynamic.py
     - File: test/test_preprocessing/test_tokens_dynamic.py
     - Test `select_tokens()` returns correct subset
     - Test `TokenView` properties are lazily evaluated
@@ -179,7 +179,7 @@ Each task:
     - _Leverage: test/conftest.py for fixtures_
     - _Requirements: 1.1-1.3, 3.1-3.5_
 
-  - [ ] 6.2 Add dynamic methods to Tokens class in tfmpe/preprocessing/tokens.py
+  - [x] 6.2 Add dynamic methods to Tokens class in tfmpe/preprocessing/tokens.py
     - File: tfmpe/preprocessing/tokens.py (extend from task 5.2)
     - Implement `select_tokens()` method returning `TokenView`
     - Implement `cross_attention_mask()` method
@@ -187,11 +187,11 @@ Each task:
     - _Leverage: tfmpe/preprocessing/masks.py, tfmpe/preprocessing/flatten.py_
     - _Requirements: 1.1-1.3, 3.1-3.5_
 
-- [ ] 7.0 Implement TokenView class with tests
+- [x] 7.0 Implement TokenView class with tests
   - Purpose: Create zero-copy view into Tokens
   - _Requirements: 1.1-1.3_
 
-  - [ ] 7.1 Add TokenView tests to test/test_preprocessing/test_tokens_dynamic.py
+  - [x] 7.1 Add TokenView tests to test/test_preprocessing/test_tokens_dynamic.py
     - File: test/test_preprocessing/test_tokens_dynamic.py (extend from task 6.1)
     - Test all TokenView properties (data, labels, masks, slices)
     - Test lazy evaluation (properties not computed until accessed)
@@ -200,7 +200,7 @@ Each task:
     - _Leverage: existing fixtures from task 6.1_
     - _Requirements: 1.1-1.3_
 
-  - [ ] 7.2 Create TokenView class in tfmpe/preprocessing/token_view.py
+  - [x] 7.2 Create TokenView class in tfmpe/preprocessing/token_view.py
     - File: tfmpe/preprocessing/token_view.py
     - Define `TokenView` dataclass
     - Implement all properties (data, labels, masks, etc.) with lazy evaluation

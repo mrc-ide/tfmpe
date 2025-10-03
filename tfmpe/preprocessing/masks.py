@@ -61,7 +61,6 @@ def build_self_attention_mask(
     Creates a binary mask where 1 indicates allowed attention and 0
     indicates blocked attention, based on independence rules.
 
-<<<<<<< HEAD
     Independence Types
     ------------------
 
@@ -137,8 +136,6 @@ def build_self_attention_mask(
           7 [0  1  0  0  1  0 | 1  1  1]  keyB dim 1
           8 [0  0  1  0  0  1 | 1  1  1]  keyB dim 2
 
-=======
->>>>>>> fd59d56 (Preprocessing phase 1: masking)
     Parameters
     ----------
     block_slices : Dict[str, Dict]
@@ -162,7 +159,6 @@ def build_self_attention_mask(
 
     Examples
     --------
-<<<<<<< HEAD
     Cross-local with diagonal attention:
 
     >>> slices = {
@@ -200,16 +196,6 @@ def build_self_attention_mask(
     Array([[0., 0., 0.],
            [0., 0., 0.],
            [0., 0., 0.]], dtype=float32)
-=======
-    >>> slices = {
-    ...     'theta': {'offset': 0, 'event_shape': (3,), ...},
-    ...     'obs': {'offset': 3, 'event_shape': (3,), ...}
-    ... }
-    >>> independence = {'cross_local': [('theta', 'obs', None)]}
-    >>> mask = build_self_attention_mask(slices, independence)
-    >>> mask.shape
-    (6, 6)
->>>>>>> fd59d56 (Preprocessing phase 1: masking)
     """
     total_size = sum(
         prod(s['event_shape']) for s in block_slices.values()
@@ -324,18 +310,14 @@ def build_cross_attention_mask(
 
     Examples
     --------
-<<<<<<< HEAD
     Cross-local with diagonal attention:
 
-=======
->>>>>>> fd59d56 (Preprocessing phase 1: masking)
     >>> query_slices = {'theta': {'offset': 0, 'event_shape': (3,)}}
     >>> key_slices = {'obs': {'offset': 0, 'event_shape': (3,)}}
     >>> independence = {'cross_local': [('theta', 'obs', None)]}
     >>> mask = build_cross_attention_mask(
     ...     query_slices, key_slices, independence
     ... )
-<<<<<<< HEAD
     >>> mask
     Array([[1., 0., 0.],
            [0., 1., 0.],
@@ -368,10 +350,6 @@ def build_cross_attention_mask(
            [1., 1., 1.],
            [1., 1., 1.],
            [1., 1., 1.]], dtype=float32)
-=======
-    >>> mask.shape
-    (3, 3)
->>>>>>> fd59d56 (Preprocessing phase 1: masking)
     """
     Q = sum(prod(b["event_shape"]) for b in query_slices.values())
     K = sum(prod(b["event_shape"]) for b in key_slices.values())
