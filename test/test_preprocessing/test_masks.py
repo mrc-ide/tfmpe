@@ -36,12 +36,12 @@ def simple_slices():
         },
         'theta': {
             'offset': 1,
-            'event_shape': (5,),
+            'event_shape': (2,),
             'batch_shape': (1,)
         },
         'obs': {
-            'offset': 6,
-            'event_shape': (5,),
+            'offset': 3,
+            'event_shape': (2,),
             'batch_shape': (1,)
         }
     }
@@ -55,20 +55,19 @@ def test_self_attention_mask_local_independence(simple_slices):
 
     mask = build_self_attention_mask(simple_slices, independence)
 
-    # Total size: 1 (mu) + 5 (theta) + 5 (obs) = 11
-    assert mask.shape == (11, 11)
+    # Total size: 1 (mu) + 2 (theta) + 2 (obs) = 5
+    # mu: [0], theta: [1:3], obs: [3:5]
+    expected = np.array([
+        # mu theta    obs
+        [1., 1., 1., 1., 1.],  # mu
+        [1., 0., 0., 1., 1.],  # theta[0]
+        [1., 0., 0., 1., 1.],  # theta[1]
+        [1., 1., 1., 0., 0.],  # obs[0]
+        [1., 1., 1., 0., 0.],  # obs[1]
+    ], dtype=np.float32)
 
-    # Check that diagonal blocks for 'theta' and 'obs' are zeroed
-    # theta block: [1:6, 1:6]
-    theta_self = mask[1:6, 1:6]
-    assert jnp.allclose(theta_self, 0.0)
-
-    # obs block: [6:11, 6:11]
-    obs_self = mask[6:11, 6:11]
-    assert jnp.allclose(obs_self, 0.0)
-
-    # mu should still attend to itself (not in local list)
-    assert jnp.allclose(mask[0, 0], 1.0)
+    assert mask.shape == (5, 5)
+    assert jnp.allclose(mask, expected)
 
 
 def test_self_attention_mask_cross_independence(simple_slices):
@@ -79,19 +78,19 @@ def test_self_attention_mask_cross_independence(simple_slices):
 
     mask = build_self_attention_mask(simple_slices, independence)
 
-    assert mask.shape == (11, 11)
+    # Total size: 1 (mu) + 2 (theta) + 2 (obs) = 5
+    # mu: [0], theta: [1:3], obs: [3:5]
+    expected = np.array([
+        # mu theta    obs
+        [1., 1., 1., 0., 0.],  # mu
+        [1., 1., 1., 1., 1.],  # theta[0]
+        [1., 1., 1., 1., 1.],  # theta[1]
+        [0., 1., 1., 1., 1.],  # obs[0]
+        [0., 1., 1., 1., 1.],  # obs[1]
+    ], dtype=np.float32)
 
-    # Check that mu-obs and obs-mu blocks are zeroed
-    # mu-obs: [0:1, 6:11]
-    assert jnp.allclose(mask[0:1, 6:11], 0.0)
-
-    # obs-mu: [6:11, 0:1]
-    assert jnp.allclose(mask[6:11, 0:1], 0.0)
-
-    # Diagonal blocks should be 1 (no local independence)
-    assert jnp.allclose(mask[0, 0], 1.0)
-    assert jnp.allclose(jnp.diag(mask[1:6, 1:6]), 1.0)
-    assert jnp.allclose(jnp.diag(mask[6:11, 6:11]), 1.0)
+    assert mask.shape == (5, 5)
+    assert jnp.allclose(mask, expected)
 
 
 def test_self_attention_mask_cross_local_with_functional_inputs(
@@ -105,19 +104,19 @@ def test_self_attention_mask_cross_local_with_functional_inputs(
 
     mask = build_self_attention_mask(simple_slices, independence)
 
-    assert mask.shape == (11, 11)
+    # Total size: 1 (mu) + 2 (theta) + 2 (obs) = 5
+    # mu: [0], theta: [1:3], obs: [3:5]
+    expected = np.array([
+        # mu theta    obs
+        [1., 1., 1., 1., 1.],  # mu
+        [1., 1., 1., 1., 0.],  # theta[0]
+        [1., 1., 1., 0., 1.],  # theta[1]
+        [1., 1., 0., 1., 1.],  # obs[0]
+        [1., 0., 1., 1., 1.],  # obs[1]
+    ], dtype=np.float32)
 
-    # Cross-local zeros entire block then re-enables matching indices
-    # theta-obs block: [1:6, 6:11]
-    theta_obs = mask[1:6, 6:11]
-
-    # Only diagonal should be 1 (theta[i] -> obs[i])
-    expected = np.eye(5, dtype=np.float32)
-    assert jnp.allclose(theta_obs, expected)
-
-    # obs-theta block should be symmetric
-    obs_theta = mask[6:11, 1:6]
-    assert jnp.allclose(obs_theta, expected)
+    assert mask.shape == (5, 5)
+    assert jnp.allclose(mask, expected)
 
 
 def test_self_attention_mask_cross_local_diagonal(simple_slices):
@@ -129,10 +128,19 @@ def test_self_attention_mask_cross_local_diagonal(simple_slices):
 
     mask = build_self_attention_mask(simple_slices, independence)
 
-    # theta and obs have same size (5), so diagonal should work
-    theta_obs = mask[1:6, 6:11]
-    expected = np.eye(5, dtype=np.float32)
-    assert jnp.allclose(theta_obs, expected)
+    # Total size: 1 (mu) + 2 (theta) + 2 (obs) = 5
+    # mu: [0], theta: [1:3], obs: [3:5]
+    expected = np.array([
+        # mu theta    obs
+        [1., 1., 1., 1., 1.],  # mu
+        [1., 1., 1., 1., 0.],  # theta[0]
+        [1., 1., 1., 0., 1.],  # theta[1]
+        [1., 1., 0., 1., 1.],  # obs[0]
+        [1., 0., 1., 1., 1.],  # obs[1]
+    ], dtype=np.float32)
+
+    assert mask.shape == (5, 5)
+    assert jnp.allclose(mask, expected)
 
 
 def test_self_attention_mask_combined_rules(
@@ -145,20 +153,21 @@ def test_self_attention_mask_combined_rules(
         hierarchical_gaussian_independence
     )
 
-    assert mask.shape == (11, 11)
+    # Total size: 1 (mu) + 2 (theta) + 2 (obs) = 5
+    # mu: [0], theta: [1:3], obs: [3:5]
+    # Rules: local=['obs', 'theta'], cross=[('mu', 'obs'), ('obs', 'mu')],
+    #        cross_local=[('theta', 'obs', (0, 0))]
+    expected = np.array([
+        # mu theta    obs
+        [1., 1., 1., 0., 0.],  # mu (cross blocks obs)
+        [1., 0., 0., 1., 0.],  # theta[0] (local, cross_local with obs[0])
+        [1., 0., 0., 0., 1.],  # theta[1] (local, cross_local with obs[1])
+        [0., 1., 0., 0., 0.],  # obs[0] (cross blocks mu, local, cross_local)
+        [0., 0., 1., 0., 0.],  # obs[1] (cross blocks mu, local, cross_local)
+    ], dtype=np.float32)
 
-    # Local: obs and theta should have zero self-attention
-    assert jnp.allclose(mask[1:6, 1:6], 0.0)  # theta
-    assert jnp.allclose(mask[6:11, 6:11], 0.0)  # obs
-
-    # Cross: mu-obs should be zero
-    assert jnp.allclose(mask[0:1, 6:11], 0.0)
-    assert jnp.allclose(mask[6:11, 0:1], 0.0)
-
-    # Cross-local: theta-obs diagonal enabled
-    theta_obs = mask[1:6, 6:11]
-    expected = np.eye(5, dtype=np.float32)
-    assert jnp.allclose(theta_obs, expected)
+    assert mask.shape == (5, 5)
+    assert jnp.allclose(mask, expected)
 
 
 def test_cross_local_multidim_event_shapes():
@@ -285,7 +294,7 @@ def test_cross_attention_mask_basic():
     query_slices = {
         'theta': {
             'offset': 0,
-            'event_shape': (3,),
+            'event_shape': (2,),
             'batch_shape': (1,)
         }
     }
@@ -298,7 +307,7 @@ def test_cross_attention_mask_basic():
         },
         'obs': {
             'offset': 1,
-            'event_shape': (3,),
+            'event_shape': (2,),
             'batch_shape': (1,)
         }
     }
@@ -313,14 +322,16 @@ def test_cross_attention_mask_basic():
         independence
     )
 
-    # Query: 3 (theta), Key: 1 (mu) + 3 (obs) = 4
-    assert mask.shape == (3, 4)
+    # Query: 2 (theta), Key: 1 (mu) + 2 (obs) = 3
+    # theta queries: [0:2], keys: mu [0], obs [1:3]
+    expected = np.array([
+        # mu obs
+        [0., 1., 1.],  # theta[0]
+        [0., 1., 1.],  # theta[1]
+    ], dtype=np.float32)
 
-    # theta-mu should be zeroed: [0:3, 0:1]
-    assert jnp.allclose(mask[0:3, 0:1], 0.0)
-
-    # theta-obs should be ones (no restriction)
-    assert jnp.allclose(mask[0:3, 1:4], 1.0)
+    assert mask.shape == (2, 3)
+    assert jnp.allclose(mask, expected)
 
 
 def test_cross_attention_mask_with_cross_local():
@@ -328,7 +339,7 @@ def test_cross_attention_mask_with_cross_local():
     query_slices = {
         'theta': {
             'offset': 0,
-            'event_shape': (5,),
+            'event_shape': (2,),
             'batch_shape': (1,)
         }
     }
@@ -336,7 +347,7 @@ def test_cross_attention_mask_with_cross_local():
     key_slices = {
         'obs': {
             'offset': 0,
-            'event_shape': (5,),
+            'event_shape': (2,),
             'batch_shape': (1,)
         }
     }
@@ -351,10 +362,15 @@ def test_cross_attention_mask_with_cross_local():
         independence
     )
 
-    assert mask.shape == (5, 5)
+    # Query: 2 (theta), Key: 2 (obs)
+    # theta[i] can only attend to obs[i]
+    expected = np.array([
+        # obs
+        [1., 0.],  # theta[0]
+        [0., 1.],  # theta[1]
+    ], dtype=np.float32)
 
-    # Should be diagonal (theta[i] -> obs[i])
-    expected = np.eye(5, dtype=np.float32)
+    assert mask.shape == (2, 2)
     assert jnp.allclose(mask, expected)
 
 
