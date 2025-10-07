@@ -61,6 +61,81 @@ def build_self_attention_mask(
     Creates a binary mask where 1 indicates allowed attention and 0
     indicates blocked attention, based on independence rules.
 
+    Independence Types
+    ------------------
+
+    1. 'local': List of keys (e.g. ['keyA']) - Blocks self-attention within a key
+
+       key = keyA, event_shape = (2,)
+       key = keyB, event_shape = (2,)
+
+       keyA tokens: [0, 1], keyB tokens: [2, 3]
+
+              keyA     keyB
+               0  1    2  3
+          0 [0  0  | 1  1]  keyA
+          1 [0  0  | 1  1]
+            ------|------
+          2 [1  1  | 1  1]  keyB
+          3 [1  1  | 1  1]
+
+    2. 'cross': List of (keyA, keyB) - Blocks all attention between
+       keyA and keyB
+
+       keyA, event_shape = (3,)
+       keyB, event_shape = (3,)
+
+       keyA tokens: [0, 1, 2], keyB tokens: [3, 4, 5]
+
+              keyA        keyB
+               0  1  2   3  4  5
+          0 [1  1  1 | 0  0  0]  keyA
+          1 [1  1  1 | 0  0  0]
+          2 [1  1  1 | 0  0  0]
+            --------|--------
+          3 [0  0  0 | 1  1  1]  keyB
+          4 [0  0  0 | 1  1  1]
+          5 [0  0  0 | 1  1  1]
+
+    3. 'cross_local': List of (keyA, keyB, idx_map)
+
+       a) idx_map = None: Diagonal attention only (sizes must match)
+
+          keyA, event_shape = (3,)
+          keyB, event_shape = (3,)
+
+              keyA        keyB
+               0  1  2   3  4  5
+          0 [1  1  1 | 1  0  0]  keyA
+          1 [1  1  1 | 0  1  0]
+          2 [1  1  1 | 0  0  1]
+            --------|--------
+          3 [1  0  0 | 1  1  1]  keyB
+          4 [0  1  0 | 1  1  1]
+          5 [0  0  1 | 1  1  1]
+
+       b) idx_map = (dimA, dimB): Attention along shared dimension
+
+          keyA, event_shape = (2, 3)  # 2 groups, 3 dims
+          keyB, event_shape = (3,)    # 3 dims
+          idx_map = (1, 0)  # keyA's dim 1 matches keyB's dim 0
+
+          keyA tokens: [0,1,2, 3,4,5], keyB tokens: [6,7,8]
+                        group0  group1
+
+              keyA                 keyB
+               0  1  2  3  4  5   6  7  8
+          0 [1  1  1  1  1  1 | 1  0  0]  keyA group 0, dim 0
+          1 [1  1  1  1  1  1 | 0  1  0]  keyA group 0, dim 1
+          2 [1  1  1  1  1  1 | 0  0  1]  keyA group 0, dim 2
+          3 [1  1  1  1  1  1 | 1  0  0]  keyA group 1, dim 0
+          4 [1  1  1  1  1  1 | 0  1  0]  keyA group 1, dim 1
+          5 [1  1  1  1  1  1 | 0  0  1]  keyA group 1, dim 2
+            -----------------|---------
+          6 [1  0  0  1  0  0 | 1  1  1]  keyB dim 0
+          7 [0  1  0  0  1  0 | 1  1  1]  keyB dim 1
+          8 [0  0  1  0  0  1 | 1  1  1]  keyB dim 2
+
     Parameters
     ----------
     block_slices : Dict[str, Dict]
@@ -84,14 +159,43 @@ def build_self_attention_mask(
 
     Examples
     --------
+    Cross-local with diagonal attention:
+
     >>> slices = {
-    ...     'theta': {'offset': 0, 'event_shape': (3,), ...},
-    ...     'obs': {'offset': 3, 'event_shape': (3,), ...}
+    ...     'theta': {'offset': 0, 'event_shape': (3,)},
+    ...     'obs': {'offset': 3, 'event_shape': (3,)}
     ... }
     >>> independence = {'cross_local': [('theta', 'obs', None)]}
     >>> mask = build_self_attention_mask(slices, independence)
-    >>> mask.shape
-    (6, 6)
+    >>> mask
+    Array([[1., 1., 1., 1., 0., 0.],
+           [1., 1., 1., 0., 1., 0.],
+           [1., 1., 1., 0., 0., 1.],
+           [1., 0., 0., 1., 1., 1.],
+           [0., 1., 0., 1., 1., 1.],
+           [0., 0., 1., 1., 1., 1.]], dtype=float32)
+
+    Cross independence blocks all attention:
+
+    >>> independence = {'cross': [('theta', 'obs')]}
+    >>> mask = build_self_attention_mask(slices, independence)
+    >>> mask
+    Array([[1., 1., 1., 0., 0., 0.],
+           [1., 1., 1., 0., 0., 0.],
+           [1., 1., 1., 0., 0., 0.],
+           [0., 0., 0., 1., 1., 1.],
+           [0., 0., 0., 1., 1., 1.],
+           [0., 0., 0., 1., 1., 1.]], dtype=float32)
+
+    Local independence blocks self-attention:
+
+    >>> slices = {'theta': {'offset': 0, 'event_shape': (3,)}}
+    >>> independence = {'local': ['theta']}
+    >>> mask = build_self_attention_mask(slices, independence)
+    >>> mask
+    Array([[0., 0., 0.],
+           [0., 0., 0.],
+           [0., 0., 0.]], dtype=float32)
     """
     total_size = sum(
         prod(s['event_shape']) for s in block_slices.values()
@@ -206,14 +310,46 @@ def build_cross_attention_mask(
 
     Examples
     --------
+    Cross-local with diagonal attention:
+
     >>> query_slices = {'theta': {'offset': 0, 'event_shape': (3,)}}
     >>> key_slices = {'obs': {'offset': 0, 'event_shape': (3,)}}
     >>> independence = {'cross_local': [('theta', 'obs', None)]}
     >>> mask = build_cross_attention_mask(
     ...     query_slices, key_slices, independence
     ... )
-    >>> mask.shape
-    (3, 3)
+    >>> mask
+    Array([[1., 0., 0.],
+           [0., 1., 0.],
+           [0., 0., 1.]], dtype=float32)
+
+    Cross independence blocks all attention:
+
+    >>> independence = {'cross': [('theta', 'obs')]}
+    >>> mask = build_cross_attention_mask(
+    ...     query_slices, key_slices, independence
+    ... )
+    >>> mask
+    Array([[0., 0., 0.],
+           [0., 0., 0.],
+           [0., 0., 0.]], dtype=float32)
+
+    Multiple query and key blocks (default all ones):
+
+    >>> query_slices = {
+    ...     'theta': {'offset': 0, 'event_shape': (2,)},
+    ...     'phi': {'offset': 2, 'event_shape': (2,)}
+    ... }
+    >>> key_slices = {'obs': {'offset': 0, 'event_shape': (3,)}}
+    >>> independence = {}
+    >>> mask = build_cross_attention_mask(
+    ...     query_slices, key_slices, independence
+    ... )
+    >>> mask
+    Array([[1., 1., 1.],
+           [1., 1., 1.],
+           [1., 1., 1.],
+           [1., 1., 1.]], dtype=float32)
     """
     Q = sum(prod(b["event_shape"]) for b in query_slices.values())
     K = sum(prod(b["event_shape"]) for b in key_slices.values())
