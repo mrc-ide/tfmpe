@@ -68,9 +68,11 @@ python -m pytest test/ -m "scale"
 python -m pytest test/ -m ""
 ```
 
-### Type Checking
+### Linting
 
 Static type analysis: `pyright`
+Linting: `ruff`
+
 
 ### Documentation
 

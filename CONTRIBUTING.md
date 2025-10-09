@@ -8,7 +8,7 @@ outlines the development workflow and contribution standards.
 All contributions must meet the following requirements:
 
 - **Tests**: All tests must pass (`python -m pytest test/`)
-- **Type Checking**: Code must pass static type analysis (`pyright`)
+- **Type Checking**: Code must pass static type analysis (`pyright` and `ruff check`)
 - **Code Quality**: Follow the project's coding standards (see CLAUDE.md)
 - **Documentation**: Include numpy-style docstrings for public APIs
 

@@ -25,3 +25,6 @@ jobs:
       - name: Run pyright
         run: |
           pyright
+      - name: Run ruff
+        run: |
+          ruff check
