@@ -4,6 +4,7 @@
 
 - `python -m pytest test/` - Run test suite
 - `pyright` - Type checking
+- `ruff check` - Linting
 
 The virtualenv is in the `env` directory at the root of the repo
 

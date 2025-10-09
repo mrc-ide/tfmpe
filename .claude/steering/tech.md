@@ -28,7 +28,7 @@ Scientific computing package
 
 ### Code Quality Tools
 
-  - **Static Analysis**: pyright
+  - **Static Analysis**: pyright, ruff
   - **Testing Framework**: pytest
   - **Documentation**: mkdocs
 
@@ -43,5 +43,6 @@ Scientific computing package
 
   - All not `slow` tests pass
   - No `pyright` issues
+  - No `ruff check` issues
   - No degredation in benchmarks
   - No dead or duplicated code
