@@ -1,7 +1,7 @@
 """PyTree reconstruction utilities for parameter processing."""
 
 import math
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 import jax.numpy as jnp
 from jaxtyping import Array
