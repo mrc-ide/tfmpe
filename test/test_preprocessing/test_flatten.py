@@ -6,9 +6,72 @@ arrays, with padding, slice tracking, and value override capabilities.
 
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array
 
-from tfmpe.preprocessing import flatten_pytree, update_flat_array
+from tfmpe.preprocessing import flatten_leaf, flatten_pytree, update_flat_array
+
+
+@pytest.mark.parametrize(
+    "sample_ndims,event_shape,batch_shape,max_batch_size",
+    [
+        # No sample dims, various event shapes, batch_ndims=1
+        (0, (3,), (1,), 1),  # 1D event, no padding
+        (0, (3,), (1,), 5),  # 1D event, with padding
+        (0, (2, 3), (1,), 1),  # 2D event, no padding
+        (0, (2, 3), (2,), 4),  # 2D event, with padding
+        (0, (2, 3, 4), (1,), 3),  # 3D event, with padding
+        # With 1 sample dim
+        (1, (3,), (1,), 1),  # 1D event, no padding
+        (1, (2, 3), (1,), 3),  # 2D event, with padding
+        (1, (2, 3, 4), (2,), 2),  # 3D event, no padding
+        # With 2 sample dims
+        (2, (3,), (1,), 1),  # 1D event, no padding
+        (2, (2, 3), (1,), 2),  # 2D event, with padding
+        # batch_ndims=2 cases
+        (0, (3,), (2, 2), 4),  # 1D event, batch=(2,2), no padding
+        (0, (2, 3), (2, 3), 10),  # 2D event, batch=(2,3), with padding
+        (1, (2, 3), (2, 2), 6),  # 2D event, batch=(2,2), with padding
+    ]
+)
+def test_flatten_leaf_shapes_and_padding(
+    sample_ndims, event_shape, batch_shape, max_batch_size
+):
+    """Test flatten_leaf with various sample, event, batch dimensions."""
+    batch_ndims = len(batch_shape)
+    batch_size = int(jnp.prod(jnp.array(batch_shape)))
+
+    # Construct sample shape
+    sample_shape = tuple(2 for _ in range(sample_ndims))
+
+    # Create input array with shape (*sample_shape, *event_shape, *batch_shape)
+    full_shape = sample_shape + event_shape + batch_shape
+    leaf = jnp.arange(
+        1.0, float(jnp.prod(jnp.array(full_shape)) + 1)
+    ).reshape(full_shape)
+
+    # Flatten
+    pad_value = -999.0
+    result = flatten_leaf(
+        leaf, sample_ndims, batch_ndims, pad_value, max_batch_size
+    )
+
+    # Verify output shape
+    event_flat = int(jnp.prod(jnp.array(event_shape)) if event_shape else 1)
+    expected_shape = sample_shape + (event_flat, max_batch_size)
+    assert result.shape == expected_shape, (
+        f"Expected shape {expected_shape}, got {result.shape}"
+    )
+
+    # Verify all non-padded values are preserved
+    assert jnp.allclose(
+        result[..., :event_flat, :batch_size].flatten(),
+        leaf.flatten()
+    )
+
+    # Check padding if applicable
+    if max_batch_size > batch_size:
+        assert jnp.allclose(
+            result[..., batch_size:], pad_value
+        )
 
 
 def test_flatten_pytree_simple():
