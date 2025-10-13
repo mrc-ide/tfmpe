@@ -6,7 +6,7 @@ arrays, with padding, slice tracking, and value override capabilities.
 
 import jax.numpy as jnp
 import pytest
-from tfmpe.preprocessing import flatten_leaf, flatten_pytree, update_flat_array
+from tfmpe.preprocessing.flatten import flatten_leaf, flatten_pytree, update_flat_array
 
 @pytest.mark.parametrize(
     "sample_ndims,event_shape,batch_shape,max_batch_size",
