@@ -283,6 +283,7 @@ def test_from_pytree_functional_inputs_with_sample_dims():
     )
 
     # Check functional_inputs shape: (2, 3, 1)
+    assert tokens.functional_inputs is not None
     assert tokens.functional_inputs.shape == (2, 3, 1)
     assert tokens.functional_inputs.shape == tokens.data.shape
 
