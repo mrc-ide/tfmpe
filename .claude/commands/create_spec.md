@@ -37,7 +37,7 @@ You are an AI assistant that specializes in spec-driven development. Your role i
    - Get user approval
 
 4. **Implementation Phase** (Phase 4)
-   - Use generated task commands or execute tasks individually
+   - execute tasks individually
 
 ## Instructions
 
