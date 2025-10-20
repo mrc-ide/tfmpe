@@ -32,7 +32,7 @@ def test_select_tokens_returns_view(tokens_simple):
     assert view.parent is tokens_simple
 
 
-def test_select_tokens_subset_data(tokens_simple):
+def test_select_tokens_subset_data(simple_pytree, tokens_simple):
     """Test that select_tokens extracts correct data subset."""
     # Select only theta and obs (skip mu)
     view = tokens_simple.select_tokens(['theta', 'obs'])
@@ -42,8 +42,8 @@ def test_select_tokens_subset_data(tokens_simple):
 
     # Verify values match
     expected_data = jnp.concatenate([
-        jnp.array([[2.0], [3.0], [4.0]]),  # theta
-        jnp.array([[0.1], [0.2], [0.3]])   # obs
+        simple_pytree['theta'],
+        simple_pytree['obs']
     ], axis=0)
     assert jnp.allclose(view.data, expected_data)
 

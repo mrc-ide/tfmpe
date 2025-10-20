@@ -16,8 +16,6 @@ from .masks import build_cross_attention_mask, build_self_attention_mask
 from .reconstruct import decode_pytree, decode_pytree_keys
 from .token_view import TokenView
 
-FUNCTIONAL_INPUT_PAD_VALUE = -1e8
-
 
 @dataclass
 class Tokens:
@@ -166,8 +164,7 @@ class Tokens:
             func_inputs_flat = flatten_functional_inputs(
                 functional_inputs,
                 slices,
-                sample_ndims=sample_ndims,
-                pad_value=FUNCTIONAL_INPUT_PAD_VALUE
+                sample_ndims=sample_ndims
             )
 
         return cls(

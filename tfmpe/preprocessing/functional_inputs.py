@@ -8,11 +8,13 @@ from jaxtyping import Array
 
 from .flatten import flatten_leaf
 
+# Padding value used for non-functional inputs
+FUNCTIONAL_INPUT_PAD_VALUE = -1e8
+
 def flatten_functional_inputs(
     functional_inputs: Optional[Dict[str, Array]],
     slices: Dict[str, Dict[str, Any]],
-    sample_ndims: int,
-    pad_value: float = -1e8,
+    sample_ndims: int
 ) -> Optional[Array]:
     """
     Flatten functional inputs aligned with token slices.
@@ -38,8 +40,6 @@ def flatten_functional_inputs(
         'event_shape', and 'batch_shape' for each key.
     sample_ndims : int
         Number of leading sample dimensions to preserve.
-    pad_value : float, optional
-        Value to use for padding. Default is -1e8 (sentinel value).
 
     Returns
     -------
@@ -88,7 +88,7 @@ def flatten_functional_inputs(
 
     # Initialize output array filled with pad_value
     output_shape = sample_shape + (total_event_size, max_batch_size)
-    output = jnp.full(output_shape, pad_value)
+    output = jnp.full(output_shape, FUNCTIONAL_INPUT_PAD_VALUE)
 
     # Process each key in slices order
     for key, slice_info in slices.items():
@@ -107,7 +107,7 @@ def flatten_functional_inputs(
             f_in,
             sample_ndims,
             batch_ndims=1,
-            pad_value=pad_value,
+            pad_value=FUNCTIONAL_INPUT_PAD_VALUE,
             max_batch_size=max_batch_size
         )
 
