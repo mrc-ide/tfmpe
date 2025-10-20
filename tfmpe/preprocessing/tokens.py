@@ -11,6 +11,7 @@ import jax.numpy as jnp
 from jaxtyping import Array
 
 from .flatten import flatten_pytree, update_flat_array
+from .utils import SliceInfo
 from .functional_inputs import flatten_functional_inputs
 from .masks import build_cross_attention_mask, build_self_attention_mask
 from .reconstruct import decode_pytree, decode_pytree_keys
@@ -40,8 +41,8 @@ class Tokens:
     functional_inputs : Optional[Array]
         Functional inputs for tokens, shape (*sample_shape,
         n_total_tokens, max_batch_size)
-    slices : Dict[str, Dict]
-        Metadata per key: {name: {offset, event_shape, batch_shape}}
+    slices : Dict[str, SliceInfo]
+        Metadata per key mapping name to SliceInfo
     label_map : Dict[str, int]
         Mapping from key names to label integers
     key_order : List[str]
@@ -53,7 +54,7 @@ class Tokens:
     self_attention_mask: Array
     padding_mask: Optional[Array]
     functional_inputs: Optional[Array]
-    slices: Dict[str, Dict[str, Any]]
+    slices: Dict[str, SliceInfo]
     label_map: Dict[str, int]
     key_order: List[str]
     independence: Optional[Dict[str, Any]] = None
@@ -121,7 +122,7 @@ class Tokens:
         )
 
         # Create key order from slices (sorted by offset)
-        key_order = sorted(slices.keys(), key=lambda k: slices[k]['offset'])
+        key_order = sorted(slices.keys(), key=lambda k: slices[k].offset)
 
         # Create label map and labels array
         label_map = {key: i for i, key in enumerate(key_order)}
@@ -133,7 +134,7 @@ class Tokens:
         # Create labels for each token
         labels_list = []
         for key in key_order:
-            event_shape = slices[key]['event_shape']
+            event_shape = slices[key].event_shape
             n_tokens = 1
             for dim in event_shape:
                 n_tokens *= dim
@@ -339,8 +340,8 @@ class Tokens:
             slice_info = self.slices[key]
             expected_shape = (
                 self.sample_shape +
-                slice_info['event_shape'] +
-                slice_info['batch_shape']
+                slice_info.event_shape +
+                slice_info.batch_shape
             )
 
             if new_value.shape != expected_shape:

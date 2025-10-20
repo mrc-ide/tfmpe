@@ -11,6 +11,8 @@ import jax.numpy as jnp
 import numpy as np
 from jaxtyping import Array
 
+from .utils import SliceInfo
+
 
 def _event_indices(
     shape: Tuple[int, ...],
@@ -52,7 +54,7 @@ def _event_indices(
 
 
 def build_self_attention_mask(
-    block_slices: Dict[str, Dict],
+    block_slices: Dict[str, SliceInfo],
     independence: Dict
 ) -> Array:
     """
@@ -138,11 +140,8 @@ def build_self_attention_mask(
 
     Parameters
     ----------
-    block_slices : Dict[str, Dict]
-        Slice metadata for each block. Each entry contains:
-        - 'offset': Starting index in flattened array
-        - 'event_shape': Original event dimensions
-        - 'batch_shape': Original batch dimensions
+    block_slices : Dict[str, SliceInfo]
+        Slice metadata for each block
     independence : Dict
         Independence specification with keys:
         - 'local': List of keys with local independence (no
@@ -198,7 +197,7 @@ def build_self_attention_mask(
            [0., 0., 0.]], dtype=float32)
     """
     total_size = sum(
-        prod(s['event_shape']) for s in block_slices.values()
+        prod(s.event_shape) for s in block_slices.values()
     )
 
     # Build default mask (all ones)
@@ -208,10 +207,10 @@ def build_self_attention_mask(
     for (blockA, blockB) in independence.get("cross", []):
         if blockA not in block_slices or blockB not in block_slices:
             continue
-        offA = block_slices[blockA]["offset"]
-        sizeA = prod(block_slices[blockA]["event_shape"])
-        offB = block_slices[blockB]["offset"]
-        sizeB = prod(block_slices[blockB]["event_shape"])
+        offA = block_slices[blockA].offset
+        sizeA = prod(block_slices[blockA].event_shape)
+        offB = block_slices[blockB].offset
+        sizeB = prod(block_slices[blockB].event_shape)
 
         # Zero out sub-block
         mask_np[offA:offA+sizeA, offB:offB+sizeB] = 0
@@ -219,8 +218,8 @@ def build_self_attention_mask(
     # Apply local independence (zero out self-blocks)
     for key in independence.get("local", []):
         if key in block_slices:
-            off = block_slices[key]["offset"]
-            sz = prod(block_slices[key]["event_shape"])
+            off = block_slices[key].offset
+            sz = prod(block_slices[key].event_shape)
             mask_np[off:off+sz, off:off+sz] = 0
 
     # Apply cross_local independence
@@ -229,13 +228,13 @@ def build_self_attention_mask(
         if blockA not in block_slices or blockB not in block_slices:
             continue
 
-        offA = block_slices[blockA]["offset"]
-        sizeA = prod(block_slices[blockA]["event_shape"])
-        shapeA = block_slices[blockA]["event_shape"]
+        offA = block_slices[blockA].offset
+        sizeA = prod(block_slices[blockA].event_shape)
+        shapeA = block_slices[blockA].event_shape
 
-        offB = block_slices[blockB]["offset"]
-        sizeB = prod(block_slices[blockB]["event_shape"])
-        shapeB = block_slices[blockB]["event_shape"]
+        offB = block_slices[blockB].offset
+        sizeB = prod(block_slices[blockB].event_shape)
+        shapeB = block_slices[blockB].event_shape
 
         # Zero out entire sub-block first
         mask_np[offA:offA+sizeA, offB:offB+sizeB] = 0
@@ -282,8 +281,8 @@ def build_self_attention_mask(
 
 
 def build_cross_attention_mask(
-    query_slices: Dict[str, Dict],
-    key_slices: Dict[str, Dict],
+    query_slices: Dict[str, SliceInfo],
+    key_slices: Dict[str, SliceInfo],
     independence: Dict
 ) -> Array:
     """
@@ -294,9 +293,9 @@ def build_cross_attention_mask(
 
     Parameters
     ----------
-    query_slices : Dict[str, Dict]
+    query_slices : Dict[str, SliceInfo]
         Slice metadata for query blocks
-    key_slices : Dict[str, Dict]
+    key_slices : Dict[str, SliceInfo]
         Slice metadata for key blocks
     independence : Dict
         Independence specification (same format as
@@ -351,30 +350,30 @@ def build_cross_attention_mask(
            [1., 1., 1.],
            [1., 1., 1.]], dtype=float32)
     """
-    Q = sum(prod(b["event_shape"]) for b in query_slices.values())
-    K = sum(prod(b["event_shape"]) for b in key_slices.values())
+    Q = sum(prod(b.event_shape) for b in query_slices.values())
+    K = sum(prod(b.event_shape) for b in key_slices.values())
     mask_np = np.ones((Q, K), dtype=np.int8)
 
     # Apply cross independence
     for (blockA, blockB) in independence.get("cross", []):
         if blockA in query_slices and blockB in key_slices:
-            q_off = query_slices[blockA]["offset"]
-            q_size = prod(query_slices[blockA]["event_shape"])
-            k_off = key_slices[blockB]["offset"]
-            k_size = prod(key_slices[blockB]["event_shape"])
+            q_off = query_slices[blockA].offset
+            q_size = prod(query_slices[blockA].event_shape)
+            k_off = key_slices[blockB].offset
+            k_size = prod(key_slices[blockB].event_shape)
             mask_np[q_off:q_off+q_size, k_off:k_off+k_size] = 0
 
     # Apply cross_local independence
     for spec in independence.get("cross_local", []):
         blockA, blockB, idx_map = spec
         if blockA in query_slices and blockB in key_slices:
-            q_off = query_slices[blockA]["offset"]
-            q_size = prod(query_slices[blockA]["event_shape"])
-            q_shape = query_slices[blockA]["event_shape"]
+            q_off = query_slices[blockA].offset
+            q_size = prod(query_slices[blockA].event_shape)
+            q_shape = query_slices[blockA].event_shape
 
-            k_off = key_slices[blockB]["offset"]
-            k_size = prod(key_slices[blockB]["event_shape"])
-            k_shape = key_slices[blockB]["event_shape"]
+            k_off = key_slices[blockB].offset
+            k_size = prod(key_slices[blockB].event_shape)
+            k_shape = key_slices[blockB].event_shape
 
             # Zero out entire sub-block
             mask_np[q_off:q_off+q_size, k_off:k_off+k_size] = 0
@@ -412,7 +411,7 @@ def build_cross_attention_mask(
 
 
 def build_padding_mask(
-    block_slices: Dict[str, Dict],
+    block_slices: Dict[str, SliceInfo],
     event_shapes: Dict[str, Array]
 ) -> Array:
     """
@@ -423,7 +422,7 @@ def build_padding_mask(
 
     Parameters
     ----------
-    block_slices : Dict[str, Dict]
+    block_slices : Dict[str, SliceInfo]
         Slice metadata for each block (with padded event_shape)
     event_shapes : Dict[str, Array]
         Actual (unpadded) event shapes. Arrays should have shape
@@ -449,17 +448,17 @@ def build_padding_mask(
     >>> mask[3:]  # last 2 padding
     Array([0., 0.], dtype=float32)
     """
-    def _build_block_mask(key: str, info: Dict) -> Array:
+    def _build_block_mask(key: str, info: SliceInfo) -> Array:
         """Build mask for a single block."""
-        block_size = prod(info["event_shape"])
+        block_size = prod(info.event_shape)
         actual_event_shape = event_shapes[key]
 
         # Build coordinate grid for padded shape
-        ranges = [jnp.arange(r) for r in info['event_shape']]
+        ranges = [jnp.arange(r) for r in info.event_shape]
         coords = jnp.meshgrid(*ranges, indexing="ij")
 
         # Check validity along each dimension
-        n_event_dims = len(info['event_shape'])
+        n_event_dims = len(info.event_shape)
         valid_in_dimension = [
             coord < jnp.expand_dims(
                 actual_event_shape[..., i],

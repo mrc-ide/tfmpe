@@ -6,26 +6,27 @@ from tfmpe.preprocessing.functional_inputs import (
     flatten_functional_inputs,
     FUNCTIONAL_INPUT_PAD_VALUE
 )
+from tfmpe.preprocessing.utils import SliceInfo
 
 @pytest.fixture
 def simple_tokens_slices():
     """Simple slices dict matching token structure."""
     return {
-        'mu': {
-            'offset': 0,
-            'event_shape': (1,),
-            'batch_shape': (1,)
-        },
-        'theta': {
-            'offset': 1,
-            'event_shape': (5,),
-            'batch_shape': (1,)
-        },
-        'obs': {
-            'offset': 6,
-            'event_shape': (5, 3),
-            'batch_shape': (1,)
-        }
+        'mu': SliceInfo(
+            offset=0,
+            event_shape=(1,),
+            batch_shape=(1,)
+        ),
+        'theta': SliceInfo(
+            offset=1,
+            event_shape=(5,),
+            batch_shape=(1,)
+        ),
+        'obs': SliceInfo(
+            offset=6,
+            event_shape=(5, 3),
+            batch_shape=(1,)
+        )
     }
 
 
@@ -139,21 +140,21 @@ def test_flatten_functional_inputs_alignment_with_token_slices(
     theta_slice = simple_tokens_slices['theta']
     obs_slice = simple_tokens_slices['obs']
 
-    mu_offset = mu_slice['offset']
+    mu_offset = mu_slice.offset
     mu_size = 1  # prod(event_shape)
     assert jnp.allclose(
         result[mu_offset:mu_offset + mu_size, 0],
         10.0
     )
 
-    theta_offset = theta_slice['offset']
+    theta_offset = theta_slice.offset
     theta_size = 5  # prod(event_shape)
     assert jnp.allclose(
         result[theta_offset:theta_offset + theta_size, 0],
         20.0
     )
 
-    obs_offset = obs_slice['offset']
+    obs_offset = obs_slice.offset
     obs_size = 15  # prod(event_shape) = 5*3
     assert jnp.allclose(
         result[obs_offset:obs_offset + obs_size, 0],

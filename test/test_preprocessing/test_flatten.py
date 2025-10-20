@@ -6,7 +6,12 @@ arrays, with padding, slice tracking, and value override capabilities.
 
 import jax.numpy as jnp
 import pytest
-from tfmpe.preprocessing.flatten import flatten_leaf, flatten_pytree, update_flat_array
+from tfmpe.preprocessing.flatten import (
+    flatten_leaf,
+    flatten_pytree,
+    update_flat_array,
+)
+from tfmpe.preprocessing.utils import SliceInfo
 
 @pytest.mark.parametrize(
     "sample_ndims,event_shape,batch_shape,max_batch_size",
@@ -92,10 +97,10 @@ def test_flatten_pytree_simple():
     # Check slices metadata
     assert 'mu' in slices_dict
     assert 'sigma' in slices_dict
-    assert slices_dict['mu']['offset'] == 0
-    assert slices_dict['sigma']['offset'] == 2
-    assert slices_dict['mu']['event_shape'] == (2,)
-    assert slices_dict['sigma']['event_shape'] == (1,)
+    assert slices_dict['mu'].offset == 0
+    assert slices_dict['sigma'].offset == 2
+    assert slices_dict['mu'].event_shape == (2,)
+    assert slices_dict['sigma'].event_shape == (1,)
 
 
 @pytest.mark.parametrize(
@@ -126,7 +131,7 @@ def test_flatten_pytree_padding(batch_dims, expected_batch_size):
 
     # Check padding applied to sigma
     # sigma should be padded from batch_size=1 to expected_batch_size
-    sigma_offset = slices_dict['sigma']['offset']
+    sigma_offset = slices_dict['sigma'].offset
     sigma_data = flat_array[sigma_offset, :]
 
     # First element should be valid (1.0)
@@ -167,9 +172,9 @@ def test_flatten_reconstruct_roundtrip(structure):
     # Reconstruct using slices
     reconstructed = {}
     for key, slice_info in slices_dict.items():
-        offset = slice_info['offset']
-        event_shape = slice_info['event_shape']
-        batch_shape = slice_info['batch_shape']
+        offset = slice_info.offset
+        event_shape = slice_info.event_shape
+        batch_shape = slice_info.batch_shape
 
         # Calculate end offset
         event_size = int(jnp.prod(jnp.array(event_shape)))
@@ -193,21 +198,21 @@ def test_update_flat_array():
     flat_array = jnp.array([[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]]).T
 
     slices_dict = {
-        'a': {
-            'offset': 0,
-            'event_shape': (2,),
-            'batch_shape': (1,)
-        },
-        'b': {
-            'offset': 2,
-            'event_shape': (1,),
-            'batch_shape': (1,)
-        },
-        'c': {
-            'offset': 3,
-            'event_shape': (3,),
-            'batch_shape': (1,)
-        }
+        'a': SliceInfo(
+            offset=0,
+            event_shape=(2,),
+            batch_shape=(1,)
+        ),
+        'b': SliceInfo(
+            offset=2,
+            event_shape=(1,),
+            batch_shape=(1,)
+        ),
+        'c': SliceInfo(
+            offset=3,
+            event_shape=(3,),
+            batch_shape=(1,)
+        )
     }
 
     # Update 'b' with new values
@@ -235,16 +240,16 @@ def test_update_flat_array_multiple_keys():
     flat_array = jnp.array([[1.0, 2.0, 3.0]]).T
 
     slices_dict = {
-        'x': {
-            'offset': 0,
-            'event_shape': (1,),
-            'batch_shape': (1,)
-        },
-        'y': {
-            'offset': 1,
-            'event_shape': (2,),
-            'batch_shape': (1,)
-        }
+        'x': SliceInfo(
+            offset=0,
+            event_shape=(1,),
+            batch_shape=(1,)
+        ),
+        'y': SliceInfo(
+            offset=1,
+            event_shape=(2,),
+            batch_shape=(1,)
+        )
     }
 
     # Update both keys
@@ -268,11 +273,11 @@ def test_update_flat_array_multi_dim_event():
     flat_array = jnp.array([[1.0, 2.0, 3.0, 4.0]]).T
 
     slices_dict = {
-        'matrix': {
-            'offset': 0,
-            'event_shape': (2, 2),
-            'batch_shape': (1,)
-        }
+        'matrix': SliceInfo(
+            offset=0,
+            event_shape=(2, 2),
+            batch_shape=(1,)
+        )
     }
 
     # New values: shape (*event_shape, *batch_shape) = (2, 2, 1)
@@ -298,16 +303,16 @@ def test_update_flat_array_with_sample_dims():
     ])
 
     slices_dict = {
-        'a': {
-            'offset': 0,
-            'event_shape': (2,),
-            'batch_shape': (1,)
-        },
-        'b': {
-            'offset': 2,
-            'event_shape': (1,),
-            'batch_shape': (1,)
-        }
+        'a': SliceInfo(
+            offset=0,
+            event_shape=(2,),
+            batch_shape=(1,)
+        ),
+        'b': SliceInfo(
+            offset=2,
+            event_shape=(1,),
+            batch_shape=(1,)
+        )
     }
 
     # Update 'a' across all samples
@@ -364,8 +369,8 @@ def test_flatten_pytree_with_sample_dims():
     )
 
     # Check slices are same for all samples
-    assert slices_dict['a']['offset'] == 0
-    assert slices_dict['b']['offset'] == 2
+    assert slices_dict['a'].offset == 0
+    assert slices_dict['b'].offset == 2
 
 
 def test_flatten_pytree_with_multiple_sample_dims():

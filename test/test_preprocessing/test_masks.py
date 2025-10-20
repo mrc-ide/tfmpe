@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from tfmpe.preprocessing.utils import SliceInfo
 from tfmpe.preprocessing.masks import (
     build_self_attention_mask,
     build_cross_attention_mask,
@@ -29,21 +30,21 @@ def hierarchical_gaussian_independence():
 def simple_slices():
     """Simple slice metadata for testing."""
     return {
-        'mu': {
-            'offset': 0,
-            'event_shape': (1,),
-            'batch_shape': (1,)
-        },
-        'theta': {
-            'offset': 1,
-            'event_shape': (2,),
-            'batch_shape': (1,)
-        },
-        'obs': {
-            'offset': 3,
-            'event_shape': (2,),
-            'batch_shape': (1,)
-        }
+        'mu': SliceInfo(
+            offset=0,
+            event_shape=(1,),
+            batch_shape=(1,)
+        ),
+        'theta': SliceInfo(
+            offset=1,
+            event_shape=(2,),
+            batch_shape=(1,)
+        ),
+        'obs': SliceInfo(
+            offset=3,
+            event_shape=(2,),
+            batch_shape=(1,)
+        )
     }
 
 
@@ -171,16 +172,16 @@ def test_cross_local_multidim_event_shapes():
     # obs has shape (3, 4) = 12 tokens flattened
     # Connect along dimension 0 (size 3 in both)
     slices = {
-        'theta': {
-            'offset': 0,
-            'event_shape': (3, 2),
-            'batch_shape': (1,)
-        },
-        'obs': {
-            'offset': 6,
-            'event_shape': (3, 4),
-            'batch_shape': (1,)
-        }
+        'theta': SliceInfo(
+            offset=0,
+            event_shape=(3, 2),
+            batch_shape=(1,)
+        ),
+        'obs': SliceInfo(
+            offset=6,
+            event_shape=(3, 4),
+            batch_shape=(1,)
+        )
     }
 
     # Connect theta[i, :] to obs[i, :] via dimension (0, 0)
@@ -219,16 +220,16 @@ def test_cross_local_different_dimensions():
     # obs: (2, 5) - 2 timepoints, 5 sites
     # Connect theta site i to obs site i via (0, 1)
     slices = {
-        'theta': {
-            'offset': 0,
-            'event_shape': (5, 3),
-            'batch_shape': (1,)
-        },
-        'obs': {
-            'offset': 15,
-            'event_shape': (2, 5),
-            'batch_shape': (1,)
-        }
+        'theta': SliceInfo(
+            offset=0,
+            event_shape=(5, 3),
+            batch_shape=(1,)
+        ),
+        'obs': SliceInfo(
+            offset=15,
+            event_shape=(2, 5),
+            batch_shape=(1,)
+        )
     }
 
     independence = {
@@ -286,24 +287,24 @@ def test_cross_local_different_dimensions():
 def test_cross_attention_mask_basic():
     """Test cross-attention mask between query and key sets."""
     query_slices = {
-        'theta': {
-            'offset': 0,
-            'event_shape': (2,),
-            'batch_shape': (1,)
-        }
+        'theta': SliceInfo(
+            offset=0,
+            event_shape=(2,),
+            batch_shape=(1,)
+        )
     }
 
     key_slices = {
-        'mu': {
-            'offset': 0,
-            'event_shape': (1,),
-            'batch_shape': (1,)
-        },
-        'obs': {
-            'offset': 1,
-            'event_shape': (2,),
-            'batch_shape': (1,)
-        }
+        'mu': SliceInfo(
+            offset=0,
+            event_shape=(1,),
+            batch_shape=(1,)
+        ),
+        'obs': SliceInfo(
+            offset=1,
+            event_shape=(2,),
+            batch_shape=(1,)
+        )
     }
 
     independence = {
@@ -330,19 +331,19 @@ def test_cross_attention_mask_basic():
 def test_cross_attention_mask_with_cross_local():
     """Test cross-attention mask with cross_local independence."""
     query_slices = {
-        'theta': {
-            'offset': 0,
-            'event_shape': (2,),
-            'batch_shape': (1,)
-        }
+        'theta': SliceInfo(
+            offset=0,
+            event_shape=(2,),
+            batch_shape=(1,)
+        )
     }
 
     key_slices = {
-        'obs': {
-            'offset': 0,
-            'event_shape': (2,),
-            'batch_shape': (1,)
-        }
+        'obs': SliceInfo(
+            offset=0,
+            event_shape=(2,),
+            batch_shape=(1,)
+        )
     }
 
     independence = {
@@ -371,16 +372,16 @@ def test_cross_attention_mask_with_cross_local():
 def test_padding_mask_uniform_shapes():
     """Test padding mask with uniform event shapes."""
     slices = {
-        'a': {
-            'offset': 0,
-            'event_shape': (3,),
-            'batch_shape': (1,)
-        },
-        'b': {
-            'offset': 3,
-            'event_shape': (2,),
-            'batch_shape': (1,)
-        }
+        'a': SliceInfo(
+            offset=0,
+            event_shape=(3,),
+            batch_shape=(1,)
+        ),
+        'b': SliceInfo(
+            offset=3,
+            event_shape=(2,),
+            batch_shape=(1,)
+        )
     }
 
     # All actual shapes match padded shapes
@@ -401,16 +402,16 @@ def test_padding_mask_uniform_shapes():
 def test_padding_mask_variable_shapes():
     """Test padding mask with variable event shapes."""
     slices = {
-        'a': {
-            'offset': 0,
-            'event_shape': (5,),  # padded to 5
-            'batch_shape': (1,)
-        },
-        'b': {
-            'offset': 5,
-            'event_shape': (3,),  # padded to 3
-            'batch_shape': (1,)
-        }
+        'a': SliceInfo(
+            offset=0,
+            event_shape=(5,),  # padded to 5
+            batch_shape=(1,)
+        ),
+        'b': SliceInfo(
+            offset=5,
+            event_shape=(3,),  # padded to 3
+            batch_shape=(1,)
+        )
     }
 
     # Actual shapes are smaller
@@ -435,11 +436,11 @@ def test_padding_mask_variable_shapes():
 def test_padding_mask_with_sample_dims():
     """Test padding mask with sample dimensions."""
     slices = {
-        'x': {
-            'offset': 0,
-            'event_shape': (3,),
-            'batch_shape': (1,)
-        }
+        'x': SliceInfo(
+            offset=0,
+            event_shape=(3,),
+            batch_shape=(1,)
+        )
     }
 
     # Different actual shapes per sample

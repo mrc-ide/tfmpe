@@ -5,7 +5,6 @@ Tests verify creation of Tokens from PyTree and decoding back to PyTree.
 
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array
 
 from tfmpe.preprocessing import Tokens
 
@@ -307,5 +306,5 @@ def test_key_order_matches_slices(simple_pytree, simple_independence):
     assert set(tokens.key_order) == set(simple_pytree.keys())
 
     # Check offsets are in order
-    offsets = [tokens.slices[k]['offset'] for k in tokens.key_order]
+    offsets = [tokens.slices[k].offset for k in tokens.key_order]
     assert offsets == sorted(offsets)

@@ -6,7 +6,6 @@ generation.
 
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array
 
 from tfmpe.preprocessing import Tokens
 

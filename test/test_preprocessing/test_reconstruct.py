@@ -6,8 +6,8 @@ arrays using slice metadata, with support for selective key reconstruction.
 
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array
 
+from tfmpe.preprocessing.utils import SliceInfo
 from tfmpe.preprocessing.reconstruct import (
     decode_pytree,
     decode_pytree_keys
@@ -20,16 +20,16 @@ def test_decode_pytree_full():
     flat_array = jnp.array([[1.0, 2.0, 0.5]]).T  # (3, 1)
 
     slices_dict = {
-        'mu': {
-            'offset': 0,
-            'event_shape': (2,),
-            'batch_shape': (1,)
-        },
-        'sigma': {
-            'offset': 2,
-            'event_shape': (1,),
-            'batch_shape': (1,)
-        }
+        'mu': SliceInfo(
+            offset=0,
+            event_shape=(2,),
+            batch_shape=(1,)
+        ),
+        'sigma': SliceInfo(
+            offset=2,
+            event_shape=(1,),
+            batch_shape=(1,)
+        )
     }
 
     # Reconstruct
@@ -56,21 +56,21 @@ def test_decode_pytree_keys_selective():
     flat_array = jnp.array([[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]]).T  # (6, 1)
 
     slices_dict = {
-        'mu': {
-            'offset': 0,
-            'event_shape': (1,),
-            'batch_shape': (1,)
-        },
-        'sigma': {
-            'offset': 1,
-            'event_shape': (2,),
-            'batch_shape': (1,)
-        },
-        'obs': {
-            'offset': 3,
-            'event_shape': (3,),
-            'batch_shape': (1,)
-        }
+        'mu': SliceInfo(
+            offset=0,
+            event_shape=(1,),
+            batch_shape=(1,)
+        ),
+        'sigma': SliceInfo(
+            offset=1,
+            event_shape=(2,),
+            batch_shape=(1,)
+        ),
+        'obs': SliceInfo(
+            offset=3,
+            event_shape=(3,),
+            batch_shape=(1,)
+        )
     }
 
     # Reconstruct only mu and obs
@@ -100,21 +100,21 @@ def test_decode_pytree_key_order_preserved():
 
     # Note: dict insertion order is preserved in Python 3.7+
     slices_dict = {
-        'z': {
-            'offset': 0,
-            'event_shape': (1,),
-            'batch_shape': (1,)
-        },
-        'a': {
-            'offset': 1,
-            'event_shape': (2,),
-            'batch_shape': (1,)
-        },
-        'x': {
-            'offset': 3,
-            'event_shape': (1,),
-            'batch_shape': (1,)
-        }
+        'z': SliceInfo(
+            offset=0,
+            event_shape=(1,),
+            batch_shape=(1,)
+        ),
+        'a': SliceInfo(
+            offset=1,
+            event_shape=(2,),
+            batch_shape=(1,)
+        ),
+        'x': SliceInfo(
+            offset=3,
+            event_shape=(1,),
+            batch_shape=(1,)
+        )
     }
 
     # Reconstruct
@@ -166,16 +166,16 @@ def test_decode_pytree_with_different_sample_dims(
 ):
     """Test shape preservation with different batch dims."""
     slices_dict = {
-        'a': {
-            'offset': 0,
-            'event_shape': (2,),
-            'batch_shape': (1,)
-        },
-        'b': {
-            'offset': 2,
-            'event_shape': (1,),
-            'batch_shape': (1,)
-        }
+        'a': SliceInfo(
+            offset=0,
+            event_shape=(2,),
+            batch_shape=(1,)
+        ),
+        'b': SliceInfo(
+            offset=2,
+            event_shape=(1,),
+            batch_shape=(1,)
+        )
     }
 
     # Reconstruct
@@ -200,16 +200,16 @@ def test_decode_pytree_with_padding():
     ])  # (2, 3)
 
     slices_dict = {
-        'a': {
-            'offset': 0,
-            'event_shape': (1,),
-            'batch_shape': (3,)  # Actual batch size 3
-        },
-        'b': {
-            'offset': 1,
-            'event_shape': (1,),
-            'batch_shape': (1,)  # Actual batch size 1 (padded to 3)
-        }
+        'a': SliceInfo(
+            offset=0,
+            event_shape=(1,),
+            batch_shape=(3,)  # Actual batch size 3
+        ),
+        'b': SliceInfo(
+            offset=1,
+            event_shape=(1,),
+            batch_shape=(1,)  # Actual batch size 1 (padded to 3)
+        )
     }
 
     # Reconstruct
@@ -235,11 +235,11 @@ def test_decode_pytree_error_on_invalid_slice():
 
     # Invalid slices: offset + event_size exceeds array size
     invalid_slices = {
-        'a': {
-            'offset': 0,
-            'event_shape': (5,),  # Too large!
-            'batch_shape': (1,)
-        }
+        'a': SliceInfo(
+            offset=0,
+            event_shape=(5,),  # Too large!
+            batch_shape=(1,)
+        )
     }
 
     # Should raise error (IndexError or ValueError)
@@ -260,16 +260,16 @@ def test_decode_pytree_roundtrip_with_multidim_events():
     ]).T  # (7, 1)
 
     slices_dict = {
-        'matrix': {
-            'offset': 0,
-            'event_shape': (2, 2),  # 2x2 matrix
-            'batch_shape': (1,)
-        },
-        'vector': {
-            'offset': 4,
-            'event_shape': (3, 1),  # 3x1 vector
-            'batch_shape': (1,)
-        }
+        'matrix': SliceInfo(
+            offset=0,
+            event_shape=(2, 2),  # 2x2 matrix
+            batch_shape=(1,)
+        ),
+        'vector': SliceInfo(
+            offset=4,
+            event_shape=(3, 1),  # 3x1 vector
+            batch_shape=(1,)
+        )
     }
 
     # Reconstruct

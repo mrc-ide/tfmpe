@@ -1,8 +1,26 @@
 """Utility functions for parameter processing."""
 
 import math
-from typing import Tuple
+from typing import NamedTuple, Tuple
 from jaxtyping import Array
+
+
+class SliceInfo(NamedTuple):
+    """
+    Metadata for a slice in a flattened array.
+
+    Attributes
+    ----------
+    offset : int
+        Starting index in the flattened event dimension
+    event_shape : Tuple[int, ...]
+        Original event dimensions
+    batch_shape : Tuple[int, ...]
+        Original batch dimensions
+    """
+    offset: int
+    event_shape: Tuple[int, ...]
+    batch_shape: Tuple[int, ...]
 
 def size_along_axes(arr: Array, axes: Tuple[int, ...]) -> int:
     """

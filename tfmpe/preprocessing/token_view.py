@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import jax.numpy as jnp
 from jaxtyping import Array
 
 from .reconstruct import decode_pytree_keys
+from .utils import SliceInfo
 
 if TYPE_CHECKING:
     from .tokens import Tokens
@@ -62,8 +63,8 @@ class TokenView:
         indices_list = []
         for key in ordered_selected:
             slice_info = self.parent.slices[key]
-            offset = slice_info['offset']
-            event_shape = slice_info['event_shape']
+            offset = slice_info.offset
+            event_shape = slice_info.event_shape
 
             # Compute number of tokens for this key
             n_tokens = 1
@@ -131,25 +132,24 @@ class TokenView:
         return full_mask[jnp.ix_(indices, indices)]
 
     @cached_property
-    def slices(self) -> Dict[str, Dict[str, Any]]:
+    def slices(self) -> Dict[str, SliceInfo]:
         """
         Get slice metadata for selected keys (re-indexed to 0).
 
         Returns
         -------
-        Dict[str, Dict[str, Any]]
+        Dict[str, SliceInfo]
             Slice metadata with offsets re-indexed to start at 0
         """
         reindexed = {}
         current_offset = 0
         for key in self.selected_keys:
-            slice_info = self.parent.slices[key].copy()
-            slice_info['offset'] = current_offset
+            slice_info = self.parent.slices[key]
             n_tokens = 1
-            for dim in slice_info['event_shape']:
+            for dim in slice_info.event_shape:
                 n_tokens *= dim
+            reindexed[key] = slice_info._replace(offset=current_offset)
             current_offset += n_tokens
-            reindexed[key] = slice_info
         return reindexed
 
     @property
