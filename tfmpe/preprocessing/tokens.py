@@ -11,7 +11,7 @@ import jax.numpy as jnp
 from jaxtyping import Array
 
 from .flatten import flatten_pytree, update_flat_array
-from .utils import SliceInfo
+from .utils import Independence, SliceInfo
 from .functional_inputs import flatten_functional_inputs
 from .masks import build_cross_attention_mask, build_self_attention_mask
 from .reconstruct import decode_pytree, decode_pytree_keys
@@ -47,6 +47,9 @@ class Tokens:
         Mapping from key names to label integers
     key_order : List[str]
         Ordered list of keys (matches slice order)
+    independence : Independence
+        Independence specification controlling attention patterns between
+        tokens. See Independence class for details.
     """
 
     data: Array
@@ -57,7 +60,7 @@ class Tokens:
     slices: Dict[str, SliceInfo]
     label_map: Dict[str, int]
     key_order: List[str]
-    independence: Optional[Dict[str, Any]] = None
+    independence: Optional[Independence] = None
 
     @property
     def sample_shape(self) -> Tuple[int, ...]:
@@ -76,7 +79,7 @@ class Tokens:
     def from_pytree(
         cls,
         data: Dict[str, Array],
-        independence: Dict,
+        independence: Independence,
         functional_inputs: Optional[Dict[str, Array]] = None,
         sample_ndims: int = 0,
         batch_ndims: Optional[Dict[str, int]] = None,
@@ -91,12 +94,9 @@ class Tokens:
         data : Dict[str, Array]
             Dictionary of parameter arrays. Each array should have shape
             (*sample_dims, *event_dims, *batch_dims).
-        independence : Dict
-            Independence specification with keys:
-            - 'local': List of keys with local independence
-            - 'cross': List of (keyA, keyB) tuples with cross
-              independence
-            - 'cross_local': List of (keyA, keyB, idx_map) tuples
+        independence : Independence
+            Independence specification controlling attention patterns between
+            tokens. See Independence class for details.
         functional_inputs : Optional[Dict[str, Array]], optional
             Dictionary of functional input arrays matching data structure
         sample_ndims : int, optional
@@ -284,7 +284,7 @@ class Tokens:
             (n_query_tokens, n_key_tokens)
         """
         # Use re-indexed slices from TokenViews
-        independence = self.independence if self.independence is not None else {}
+        independence = self.independence or Independence()
         return build_cross_attention_mask(
             query_view.slices,
             key_view.slices,

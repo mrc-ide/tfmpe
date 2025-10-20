@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from tfmpe.preprocessing.utils import SliceInfo
+from tfmpe.preprocessing.utils import Independence, SliceInfo
 from tfmpe.preprocessing.masks import (
     build_self_attention_mask,
     build_cross_attention_mask,
@@ -19,11 +19,11 @@ from tfmpe.preprocessing.masks import (
 @pytest.fixture
 def hierarchical_gaussian_independence():
     """Independence spec from hierarchical_gaussian.py."""
-    return {
-        'local': ['obs', 'theta'],
-        'cross': [('mu', 'obs'), ('obs', 'mu')],
-        'cross_local': [('theta', 'obs', (0, 0))]
-    }
+    return Independence(
+        local=['obs', 'theta'],
+        cross=[('mu', 'obs'), ('obs', 'mu')],
+        cross_local=[('theta', 'obs', (0, 0))]
+    )
 
 
 @pytest.fixture
@@ -50,9 +50,9 @@ def simple_slices():
 
 def test_self_attention_mask_local_independence(simple_slices):
     """Test self-attention mask with local independence."""
-    independence = {
-        'local': ['theta', 'obs']
-    }
+    independence = Independence(
+        local=['theta', 'obs']
+    )
 
     mask = build_self_attention_mask(simple_slices, independence)
 
@@ -72,9 +72,9 @@ def test_self_attention_mask_local_independence(simple_slices):
 
 def test_self_attention_mask_cross_independence(simple_slices):
     """Test self-attention mask with cross independence."""
-    independence = {
-        'cross': [('mu', 'obs'), ('obs', 'mu')]
-    }
+    independence = Independence(
+        cross=[('mu', 'obs'), ('obs', 'mu')]
+    )
 
     mask = build_self_attention_mask(simple_slices, independence)
 
@@ -97,9 +97,9 @@ def test_self_attention_mask_cross_local_with_functional_inputs(
 ):
     """Test cross-local mask with functional input mapping."""
     # theta[i] connects to obs[i] via dimension (0, 0)
-    independence = {
-        'cross_local': [('theta', 'obs', (0, 0))]
-    }
+    independence = Independence(
+        cross_local=[('theta', 'obs', (0, 0))]
+    )
 
     mask = build_self_attention_mask(simple_slices, independence)
 
@@ -120,9 +120,9 @@ def test_self_attention_mask_cross_local_with_functional_inputs(
 def test_self_attention_mask_cross_local_diagonal(simple_slices):
     """Test cross-local mask with diagonal (None idx_map)."""
     # When idx_map is None, it's diagonal only
-    independence = {
-        'cross_local': [('theta', 'obs', None)]
-    }
+    independence = Independence(
+        cross_local=[('theta', 'obs', None)]
+    )
 
     mask = build_self_attention_mask(simple_slices, independence)
 
@@ -185,9 +185,9 @@ def test_cross_local_multidim_event_shapes():
     }
 
     # Connect theta[i, :] to obs[i, :] via dimension (0, 0)
-    independence = {
-        'cross_local': [('theta', 'obs', (0, 0))]
-    }
+    independence = Independence(
+        cross_local=[('theta', 'obs', (0, 0))]
+    )
 
     mask = build_self_attention_mask(slices, independence)
 
@@ -232,9 +232,9 @@ def test_cross_local_different_dimensions():
         )
     }
 
-    independence = {
-        'cross_local': [('theta', 'obs', (0, 1))]
-    }
+    independence = Independence(
+        cross_local=[('theta', 'obs', (0, 1))]
+    )
 
     mask = build_self_attention_mask(slices, independence)
 
@@ -307,9 +307,9 @@ def test_cross_attention_mask_basic():
         )
     }
 
-    independence = {
-        'cross': [('theta', 'mu')]
-    }
+    independence = Independence(
+        cross=[('theta', 'mu')]
+    )
 
     mask = build_cross_attention_mask(
         query_slices,
@@ -346,9 +346,9 @@ def test_cross_attention_mask_with_cross_local():
         )
     }
 
-    independence = {
-        'cross_local': [('theta', 'obs', (0, 0))]
-    }
+    independence = Independence(
+        cross_local=[('theta', 'obs', (0, 0))]
+    )
 
     mask = build_cross_attention_mask(
         query_slices,

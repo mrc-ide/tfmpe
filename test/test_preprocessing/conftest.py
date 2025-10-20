@@ -3,6 +3,8 @@
 import jax.numpy as jnp
 import pytest
 
+from tfmpe.preprocessing.utils import Independence
+
 
 @pytest.fixture
 def simple_pytree():
@@ -17,8 +19,8 @@ def simple_pytree():
 @pytest.fixture
 def simple_independence():
     """Independence spec for simple hierarchical structure."""
-    return {
-        'local': ['obs', 'theta'],
-        'cross': [('mu', 'obs'), ('obs', 'mu')],
-        'cross_local': [('theta', 'obs', None)]
-    }
+    return Independence(
+        local=['obs', 'theta'],
+        cross=[('mu', 'obs'), ('obs', 'mu')],
+        cross_local=[('theta', 'obs', None)]
+    )

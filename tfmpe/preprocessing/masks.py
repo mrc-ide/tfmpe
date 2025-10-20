@@ -11,7 +11,7 @@ import jax.numpy as jnp
 import numpy as np
 from jaxtyping import Array
 
-from .utils import SliceInfo
+from .utils import Independence, SliceInfo
 
 
 def _event_indices(
@@ -55,7 +55,7 @@ def _event_indices(
 
 def build_self_attention_mask(
     block_slices: Dict[str, SliceInfo],
-    independence: Dict
+    independence: Independence
 ) -> Array:
     """
     Build self-attention mask from independence specification.
@@ -164,7 +164,9 @@ def build_self_attention_mask(
     ...     'theta': {'offset': 0, 'event_shape': (3,)},
     ...     'obs': {'offset': 3, 'event_shape': (3,)}
     ... }
-    >>> independence = {'cross_local': [('theta', 'obs', None)]}
+    >>> independence = Independence(
+    ...     local=[], cross=[], cross_local=[('theta', 'obs', None)]
+    ... )
     >>> mask = build_self_attention_mask(slices, independence)
     >>> mask
     Array([[1., 1., 1., 1., 0., 0.],
@@ -176,7 +178,9 @@ def build_self_attention_mask(
 
     Cross independence blocks all attention:
 
-    >>> independence = {'cross': [('theta', 'obs')]}
+    >>> independence = Independence(
+    ...     local=[], cross=[('theta', 'obs')], cross_local=[]
+    ... )
     >>> mask = build_self_attention_mask(slices, independence)
     >>> mask
     Array([[1., 1., 1., 0., 0., 0.],
@@ -189,7 +193,9 @@ def build_self_attention_mask(
     Local independence blocks self-attention:
 
     >>> slices = {'theta': {'offset': 0, 'event_shape': (3,)}}
-    >>> independence = {'local': ['theta']}
+    >>> independence = Independence(
+    ...     local=['theta'], cross=[], cross_local=[]
+    ... )
     >>> mask = build_self_attention_mask(slices, independence)
     >>> mask
     Array([[0., 0., 0.],
@@ -204,7 +210,7 @@ def build_self_attention_mask(
     mask_np = np.ones((total_size, total_size), dtype=np.int8)
 
     # Apply cross independence (zero out entire sub-blocks)
-    for (blockA, blockB) in independence.get("cross", []):
+    for (blockA, blockB) in independence.cross:
         if blockA not in block_slices or blockB not in block_slices:
             continue
         offA = block_slices[blockA].offset
@@ -216,14 +222,14 @@ def build_self_attention_mask(
         mask_np[offA:offA+sizeA, offB:offB+sizeB] = 0
 
     # Apply local independence (zero out self-blocks)
-    for key in independence.get("local", []):
+    for key in independence.local:
         if key in block_slices:
             off = block_slices[key].offset
             sz = prod(block_slices[key].event_shape)
             mask_np[off:off+sz, off:off+sz] = 0
 
     # Apply cross_local independence
-    for spec in independence.get("cross_local", []):
+    for spec in independence.cross_local:
         blockA, blockB, idx_map = spec
         if blockA not in block_slices or blockB not in block_slices:
             continue
@@ -283,7 +289,7 @@ def build_self_attention_mask(
 def build_cross_attention_mask(
     query_slices: Dict[str, SliceInfo],
     key_slices: Dict[str, SliceInfo],
-    independence: Dict
+    independence: Independence
 ) -> Array:
     """
     Build cross-attention mask between query and key tokens.
@@ -313,7 +319,9 @@ def build_cross_attention_mask(
 
     >>> query_slices = {'theta': {'offset': 0, 'event_shape': (3,)}}
     >>> key_slices = {'obs': {'offset': 0, 'event_shape': (3,)}}
-    >>> independence = {'cross_local': [('theta', 'obs', None)]}
+    >>> independence = Independence(
+    ...     local=[], cross=[], cross_local=[('theta', 'obs', None)]
+    ... )
     >>> mask = build_cross_attention_mask(
     ...     query_slices, key_slices, independence
     ... )
@@ -324,7 +332,9 @@ def build_cross_attention_mask(
 
     Cross independence blocks all attention:
 
-    >>> independence = {'cross': [('theta', 'obs')]}
+    >>> independence = Independence(
+    ...     local=[], cross=[('theta', 'obs')], cross_local=[]
+    ... )
     >>> mask = build_cross_attention_mask(
     ...     query_slices, key_slices, independence
     ... )
@@ -340,7 +350,7 @@ def build_cross_attention_mask(
     ...     'phi': {'offset': 2, 'event_shape': (2,)}
     ... }
     >>> key_slices = {'obs': {'offset': 0, 'event_shape': (3,)}}
-    >>> independence = {}
+    >>> independence = Independence(local=[], cross=[], cross_local=[])
     >>> mask = build_cross_attention_mask(
     ...     query_slices, key_slices, independence
     ... )
@@ -355,7 +365,7 @@ def build_cross_attention_mask(
     mask_np = np.ones((Q, K), dtype=np.int8)
 
     # Apply cross independence
-    for (blockA, blockB) in independence.get("cross", []):
+    for (blockA, blockB) in independence.cross:
         if blockA in query_slices and blockB in key_slices:
             q_off = query_slices[blockA].offset
             q_size = prod(query_slices[blockA].event_shape)
@@ -364,7 +374,7 @@ def build_cross_attention_mask(
             mask_np[q_off:q_off+q_size, k_off:k_off+k_size] = 0
 
     # Apply cross_local independence
-    for spec in independence.get("cross_local", []):
+    for spec in independence.cross_local:
         blockA, blockB, idx_map = spec
         if blockA in query_slices and blockB in key_slices:
             q_off = query_slices[blockA].offset

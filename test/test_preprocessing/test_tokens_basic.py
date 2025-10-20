@@ -7,6 +7,62 @@ import jax.numpy as jnp
 import pytest
 
 from tfmpe.preprocessing import Tokens
+from tfmpe.preprocessing.utils import Independence
+
+
+def test_independence_default_instantiation():
+    """Test Independence can be created without specifying fields."""
+    indep = Independence()
+    assert indep.local == []
+    assert indep.cross == []
+    assert indep.cross_local == []
+
+
+def test_independence_partial_instantiation():
+    """Test Independence with only some fields specified."""
+    # Only local
+    indep1 = Independence(local=['obs'])
+    assert indep1.local == ['obs']
+    assert indep1.cross == []
+    assert indep1.cross_local == []
+
+    # Only cross
+    indep2 = Independence(cross=[('a', 'b')])
+    assert indep2.local == []
+    assert indep2.cross == [('a', 'b')]
+    assert indep2.cross_local == []
+
+    # Only cross_local
+    indep3 = Independence(cross_local=[('x', 'y', None)])
+    assert indep3.local == []
+    assert indep3.cross == []
+    assert indep3.cross_local == [('x', 'y', None)]
+
+
+def test_independence_truthiness_empty():
+    """Test empty Independence evaluates to False."""
+    indep = Independence()
+    assert not indep
+    assert bool(indep) is False
+
+
+def test_independence_truthiness_nonempty():
+    """Test Independence with any rules evaluates to True."""
+    # With local rules
+    assert bool(Independence(local=['obs']))
+
+    # With cross rules
+    assert bool(Independence(cross=[('a', 'b')]))
+
+    # With cross_local rules
+    assert bool(Independence(cross_local=[('x', 'y', None)]))
+
+    # With multiple rules
+    assert bool(Independence(
+        local=['obs'],
+        cross=[('a', 'b')],
+        cross_local=[('x', 'y', None)]
+    ))
 
 
 @pytest.fixture
@@ -25,17 +81,17 @@ def three_level_pytree():
 @pytest.fixture
 def three_level_independence():
     """Independence spec for 3-level structure."""
-    return {
-        'local': ['local_theta', 'obs'],
-        'cross': [
+    return Independence(
+        local=['local_theta', 'obs'],
+        cross=[
             ('global_mu', 'obs'),
             ('obs', 'global_mu')
         ],
-        'cross_local': [
+        cross_local=[
             ('group_mu', 'local_theta', None),
             ('local_theta', 'obs', None)
         ]
-    }
+    )
 
 
 def test_from_pytree_data_shape(simple_pytree, simple_independence):
@@ -88,7 +144,7 @@ def test_from_pytree_labels_with_sample_dims():
 
     tokens = Tokens.from_pytree(
         pytree,
-        independence={'local': []},
+        independence=Independence(),
         sample_ndims=1,
         batch_ndims={'a': 1, 'b': 1}
     )
@@ -255,7 +311,7 @@ def test_from_pytree_functional_inputs_with_sample_dims():
 
     tokens = Tokens.from_pytree(
         pytree,
-        independence={'local': []},
+        independence=Independence(),
         functional_inputs=functional_inputs,
         sample_ndims=1,
         batch_ndims={'a': 1, 'b': 1}
