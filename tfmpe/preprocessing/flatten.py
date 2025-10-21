@@ -1,12 +1,11 @@
 """PyTree flattening utilities for parameter processing."""
 
-from typing import Any, Dict, Tuple
+from typing import Dict, Tuple
 
 import jax.numpy as jnp
 from jaxtyping import Array
 
-from tfmpe.preprocessing.utils import size_along_axes
-
+from tfmpe.preprocessing.utils import SliceInfo, size_along_axes
 
 def flatten_leaf(
     leaf: Array,
@@ -76,7 +75,7 @@ def flatten_pytree(
     sample_ndims: int,
     batch_ndims: Dict[str, int],
     pad_value: float = 0.0
-) -> Tuple[Array, Dict[str, Dict[str, Any]]]:
+) -> Tuple[Array, Dict[str, SliceInfo]]:
     """
     Flatten a PyTree into a single array with slice metadata.
 
@@ -105,12 +104,8 @@ def flatten_pytree(
         (*sample_dims, total_event, max_batch)
         where total_event is the sum of flattened event dimensions
         and max_batch is the maximum batch size across all keys.
-    slices_dict : Dict[str, Dict[str, Any]]
-        Metadata for reconstructing original structure. Each key maps
-        to:
-        - 'offset': Starting index in flattened event dimension
-        - 'event_shape': Original event dimensions
-        - 'batch_shape': Original batch dimensions
+    slices_dict : Dict[str, SliceInfo]
+        Metadata for reconstructing original structure
 
     Examples
     --------
@@ -157,11 +152,11 @@ def flatten_pytree(
         # Store metadata
         event_shape = leaf.shape[sample_ndims:-batch_ndim]
         batch_shape = leaf.shape[-batch_ndim:]
-        slices[key] = {
-            "offset": current_offset,
-            "event_shape": event_shape,
-            "batch_shape": batch_shape
-        }
+        slices[key] = SliceInfo(
+            offset=current_offset,
+            event_shape=event_shape,
+            batch_shape=batch_shape
+        )
         current_offset += block_size
         flattened_leaves.append(leaf_flat)
 
@@ -172,7 +167,7 @@ def flatten_pytree(
 
 def update_flat_array(
     flat_array: Array,
-    slices_dict: Dict[str, Dict[str, Any]],
+    slices_dict: Dict[str, SliceInfo],
     key: str,
     new_values: Array
 ) -> Array:
@@ -187,13 +182,13 @@ def update_flat_array(
     flat_array : Array
         The flat array to update, with shape
         (*sample_dims, total_event, max_batch)
-    slices_dict : Dict[str, Dict[str, Any]]
+    slices_dict : Dict[str, SliceInfo]
         Slice metadata from flatten_pytree
     key : str
         Key to update
     new_values : Array
         New values for the key, with shape matching the original
-        (batch_shape, *event_shape)
+        (*sample_dims, *event_shape, *batch_shape)
 
     Returns
     -------
@@ -216,25 +211,33 @@ def update_flat_array(
     Array(99., dtype=float32)
     """
     slice_info = slices_dict[key]
-    offset = slice_info['offset']
-    event_shape = slice_info['event_shape']
-    batch_shape = slice_info['batch_shape']
+    offset = slice_info.offset
+    event_shape = slice_info.event_shape
+    batch_shape = slice_info.batch_shape
 
     # Flatten new values
-    # new_values has shape (*batch_shape, *event_shape)
-    batch_axes = tuple(range(len(batch_shape)))
-    event_axes = tuple(range(len(batch_shape), len(new_values.shape)))
-    batch_size = size_along_axes(new_values, batch_axes)
-    event_size = size_along_axes(new_values, event_axes)
+    # new_values has shape (*sample_dims, *event_shape, *batch_shape)
+    sample_ndims = len(new_values.shape) - len(event_shape) - len(batch_shape)
+    event_ndims = len(event_shape)
+    batch_ndims = len(batch_shape)
 
-    # Reshape to (event_size, batch_size)
+    event_axes = tuple(range(sample_ndims, sample_ndims + event_ndims))
+    batch_axes = tuple(range(
+        sample_ndims + event_ndims,
+        sample_ndims + event_ndims + batch_ndims
+    ))
+    event_size = size_along_axes(new_values, event_axes)
+    batch_size = size_along_axes(new_values, batch_axes)
+
+    # Reshape to (*sample_dims, event_size, batch_size)
+    sample_shape = new_values.shape[:sample_ndims]
     new_values_flat = new_values.reshape(
-        (batch_size,) + event_shape
-    ).reshape((batch_size, event_size)).T
+        sample_shape + (event_size, batch_size)
+    )
 
     # Update the flat array
     # Handle both with and without sample dimensions
-    if flat_array.ndim == 2:
+    if sample_ndims == 0:
         # Shape: (total_event, max_batch)
         updated = flat_array.at[
             offset:offset + event_size,
@@ -242,7 +245,6 @@ def update_flat_array(
         ].set(new_values_flat)
     else:
         # Shape: (*sample_dims, total_event, max_batch)
-        # For now, assume updating all samples identically
         updated = flat_array.at[
             ...,
             offset:offset + event_size,

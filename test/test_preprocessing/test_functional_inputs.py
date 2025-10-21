@@ -2,28 +2,31 @@
 
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array
-
+from tfmpe.preprocessing.functional_inputs import (
+    flatten_functional_inputs,
+    FUNCTIONAL_INPUT_PAD_VALUE
+)
+from tfmpe.preprocessing.utils import SliceInfo
 
 @pytest.fixture
 def simple_tokens_slices():
     """Simple slices dict matching token structure."""
     return {
-        'mu': {
-            'offset': 0,
-            'event_shape': (1,),
-            'batch_shape': (1,)
-        },
-        'theta': {
-            'offset': 1,
-            'event_shape': (5,),
-            'batch_shape': (1,)
-        },
-        'obs': {
-            'offset': 6,
-            'event_shape': (5, 3),
-            'batch_shape': (1,)
-        }
+        'mu': SliceInfo(
+            offset=0,
+            event_shape=(1,),
+            batch_shape=(1,)
+        ),
+        'theta': SliceInfo(
+            offset=1,
+            event_shape=(5,),
+            batch_shape=(1,)
+        ),
+        'obs': SliceInfo(
+            offset=6,
+            event_shape=(5, 3),
+            batch_shape=(1,)
+        )
     }
 
 
@@ -52,10 +55,6 @@ def test_flatten_functional_inputs_matching_shapes(
     matching_functional_inputs
 ):
     """Test flattening functional inputs with matching shapes."""
-    from tfmpe.preprocessing.functional_inputs import (
-        flatten_functional_inputs
-    )
-
     result = flatten_functional_inputs(
         matching_functional_inputs,
         simple_tokens_slices,
@@ -81,15 +80,10 @@ def test_flatten_functional_inputs_with_padding(
     padded_functional_inputs
 ):
     """Test flattening functional inputs requiring padding."""
-    from tfmpe.preprocessing.functional_inputs import (
-        flatten_functional_inputs
-    )
-
     result = flatten_functional_inputs(
         padded_functional_inputs,
         simple_tokens_slices,
-        sample_ndims=0,
-        pad_value=-1e8
+        sample_ndims=0
     )
 
     # Check shape: (total_tokens=21, max_batch=2)
@@ -99,12 +93,12 @@ def test_flatten_functional_inputs_with_padding(
     # Check mu padding (offset 0, size 1)
     # mu has batch=1, so index 1 should be padded
     assert jnp.allclose(result[0, 0], 0.0)
-    assert jnp.allclose(result[0, 1], -1e8)
+    assert jnp.allclose(result[0, 1], FUNCTIONAL_INPUT_PAD_VALUE)
 
     # Check theta padding (offset 1, size 5)
     # theta has batch=1, so index 1 should be padded
     assert jnp.allclose(result[1:6, 0], 0.0)
-    assert jnp.allclose(result[1:6, 1], -1e8)
+    assert jnp.allclose(result[1:6, 1], FUNCTIONAL_INPUT_PAD_VALUE)
 
     # Check obs no padding needed (offset 6, size 15)
     # obs has batch=2, so both indices should be valid
@@ -114,10 +108,6 @@ def test_flatten_functional_inputs_with_padding(
 
 def test_flatten_functional_inputs_none_returns_none():
     """Test that None functional inputs return None."""
-    from tfmpe.preprocessing.functional_inputs import (
-        flatten_functional_inputs
-    )
-
     result = flatten_functional_inputs(
         None,
         {},
@@ -131,10 +121,6 @@ def test_flatten_functional_inputs_alignment_with_token_slices(
     simple_tokens_slices
 ):
     """Test that functional inputs align correctly with token offsets."""
-    from tfmpe.preprocessing.functional_inputs import (
-        flatten_functional_inputs
-    )
-
     # Create functional inputs with distinct values per key
     functional_inputs = {
         'mu': jnp.full((1, 1), 10.0),  # (event=1, batch=1)
@@ -154,21 +140,21 @@ def test_flatten_functional_inputs_alignment_with_token_slices(
     theta_slice = simple_tokens_slices['theta']
     obs_slice = simple_tokens_slices['obs']
 
-    mu_offset = mu_slice['offset']
+    mu_offset = mu_slice.offset
     mu_size = 1  # prod(event_shape)
     assert jnp.allclose(
         result[mu_offset:mu_offset + mu_size, 0],
         10.0
     )
 
-    theta_offset = theta_slice['offset']
+    theta_offset = theta_slice.offset
     theta_size = 5  # prod(event_shape)
     assert jnp.allclose(
         result[theta_offset:theta_offset + theta_size, 0],
         20.0
     )
 
-    obs_offset = obs_slice['offset']
+    obs_offset = obs_slice.offset
     obs_size = 15  # prod(event_shape) = 5*3
     assert jnp.allclose(
         result[obs_offset:obs_offset + obs_size, 0],
@@ -180,10 +166,6 @@ def test_flatten_functional_inputs_subset_of_keys(
     simple_tokens_slices
 ):
     """Test flattening when functional inputs are a subset of keys."""
-    from tfmpe.preprocessing.functional_inputs import (
-        flatten_functional_inputs
-    )
-
     # Only provide functional inputs for 'obs', not 'mu' or 'theta'
     functional_inputs = {
         'obs': jnp.full((5, 3, 1), 30.0)
@@ -192,8 +174,7 @@ def test_flatten_functional_inputs_subset_of_keys(
     result = flatten_functional_inputs(
         functional_inputs,
         simple_tokens_slices,
-        sample_ndims=0,
-        pad_value=-1e8
+        sample_ndims=0
     )
 
     # Check shape: (total_tokens=21, batch=1)
@@ -201,10 +182,10 @@ def test_flatten_functional_inputs_subset_of_keys(
     assert result.shape == (21, 1)
 
     # Check mu is padded (offset 0, size 1)
-    assert jnp.allclose(result[0, 0], -1e8)
+    assert jnp.allclose(result[0, 0], FUNCTIONAL_INPUT_PAD_VALUE)
 
     # Check theta is padded (offset 1, size 5)
-    assert jnp.allclose(result[1:6, 0], -1e8)
+    assert jnp.allclose(result[1:6, 0], FUNCTIONAL_INPUT_PAD_VALUE)
 
     # Check obs has values (offset 6, size 15)
     assert jnp.allclose(result[6:21, 0], 30.0)
@@ -216,10 +197,6 @@ def test_flatten_functional_inputs_with_sample_dims(
     sample_ndims
 ):
     """Test flattening with different sample dimensions."""
-    from tfmpe.preprocessing.functional_inputs import (
-        flatten_functional_inputs
-    )
-
     # Add sample dimensions to functional inputs
     sample_shape = (2,) * sample_ndims if sample_ndims > 0 else ()
 

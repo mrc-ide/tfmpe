@@ -1,15 +1,17 @@
 """PyTree reconstruction utilities for parameter processing."""
 
 import math
-from typing import Any, Dict, Tuple
+from typing import Dict, Tuple
 
 import jax.numpy as jnp
 from jaxtyping import Array
 
+from .utils import SliceInfo
+
 
 def decode_pytree(
     flat_array: Array,
-    slices_dict: Dict[str, Dict[str, Any]],
+    slices_dict: Dict[str, SliceInfo],
     sample_shape: Tuple[int, ...],
     is_subset: bool = False
 ) -> Dict[str, Array]:
@@ -24,11 +26,8 @@ def decode_pytree(
     ----------
     flat_array : Array
         Flattened array with shape (*sample_shape, total_event, max_batch)
-    slices_dict : Dict[str, Dict[str, Any]]
-        Slice metadata from flatten_pytree. Each key maps to:
-        - 'offset': Starting index in flattened event dimension
-        - 'event_shape': Original event dimensions
-        - 'batch_shape': Original batch dimensions
+    slices_dict : Dict[str, SliceInfo]
+        Slice metadata from flatten_pytree
     sample_shape : Tuple[int, ...]
         Shape of sample dimensions (empty tuple if no sample dims)
     is_subset : bool, optional
@@ -61,7 +60,7 @@ def decode_pytree(
 
     # Validate slice metadata
     slice_event_sizes = [
-        math.prod(info['event_shape']) if info['event_shape'] else 1
+        math.prod(info.event_shape) if info.event_shape else 1
         for info in slices_dict.values()
     ]
     expected_total = sum(slice_event_sizes)
@@ -86,9 +85,9 @@ def decode_pytree(
     reconstructed = {}
 
     for key, slice_info in slices_dict.items():
-        offset = slice_info['offset']
-        event_shape = slice_info['event_shape']
-        batch_shape = slice_info['batch_shape']
+        offset = slice_info.offset
+        event_shape = slice_info.event_shape
+        batch_shape = slice_info.batch_shape
 
         # Calculate event and batch sizes
         event_size = math.prod(event_shape) if event_shape else 1
@@ -111,7 +110,7 @@ def decode_pytree(
 
 def decode_pytree_keys(
     flat_array: Array,
-    slices_dict: Dict[str, Dict[str, Any]],
+    slices_dict: Dict[str, SliceInfo],
     sample_shape: Tuple[int, ...],
     keys: list[str]
 ) -> Dict[str, Array]:
@@ -125,7 +124,7 @@ def decode_pytree_keys(
     ----------
     flat_array : Array
         Flattened array with shape (*sample_shape, total_event, max_batch)
-    slices_dict : Dict[str, Dict[str, Any]]
+    slices_dict : Dict[str, SliceInfo]
         Slice metadata from flatten_pytree
     sample_shape : Tuple[int, ...]
         Shape of sample dimensions
