@@ -64,6 +64,16 @@ def combine_tokens(tokens1: Tokens, tokens2: Tokens) -> Tokens:
             "the other does not"
         )
 
+    # If both have functional_inputs, check final dimension matches
+    if has_func1 and has_func2:
+        final_dim1 = tokens1.functional_inputs.shape[-1]  # type: ignore
+        final_dim2 = tokens2.functional_inputs.shape[-1]  # type: ignore
+        if final_dim1 != final_dim2:
+            raise ValueError(
+                "Cannot combine tokens: functional_inputs have different "
+                f"final dimensions ({final_dim1} vs {final_dim2})"
+            )
+
     # Compute max event_shape per key
     max_event_shapes: Dict[str, tuple] = {}
     for key in tokens1.key_order:
@@ -133,15 +143,16 @@ def combine_tokens(tokens1: Tokens, tokens2: Tokens) -> Tokens:
 
     # Combine functional inputs if present
     combined_func_inputs = None
-    if has_func1 and tokens1.functional_inputs is not None and tokens2.functional_inputs is not None:
+    if has_func1:
+        # ignoring since pyright won't narrow down based on has_func1)
         func1_padded = _pad_data_to_max_tokens(
-            tokens1.functional_inputs,
+            tokens1.functional_inputs, # type: ignore 
             max_n_tokens,
             sample_ndims,
             pad_value=FUNCTIONAL_INPUT_PAD_VALUE
         )
         func2_padded = _pad_data_to_max_tokens(
-            tokens2.functional_inputs,
+            tokens2.functional_inputs, # type: ignore
             max_n_tokens,
             sample_ndims,
             pad_value=FUNCTIONAL_INPUT_PAD_VALUE

@@ -9,6 +9,7 @@ from jaxtyping import Array
 
 from tfmpe.preprocessing import Tokens, combine_tokens
 from tfmpe.preprocessing.utils import Independence
+from tfmpe.preprocessing.functional_inputs import FUNCTIONAL_INPUT_PAD_VALUE
 
 
 @pytest.fixture
@@ -398,7 +399,7 @@ def test_combine_functional_inputs_both_absent(
 
 
 def test_combine_functional_inputs_with_padding():
-    """Test functional_inputs padded with -1e8 for smaller tokens."""
+    """Test functional_inputs padded with FUNCTIONAL_INPUT_PAD_VALUE for smaller tokens."""
     pytree1 = {
         'a': jnp.array([[[1.0], [2.0]]]),  # (1, 2, 1)
     }
@@ -433,16 +434,15 @@ def test_combine_functional_inputs_with_padding():
     # Check functional_inputs is not None
     assert combined.functional_inputs is not None
 
-    # Sample 0 (from tokens1): first 2 match, last is -1e8
+    # Sample 0 (from tokens1): first 2 match, last is FUNCTIONAL_INPUT_PAD_VALUE
     assert jnp.allclose(
-        combined.functional_inputs[0, 0:2, :],
-        jnp.array([[10.0], [20.0]])
+        combined.functional_inputs[0],
+        jnp.array([[10.0], [20.0], [FUNCTIONAL_INPUT_PAD_VALUE]])
     )
-    assert jnp.allclose(combined.functional_inputs[0, 2, :], -1e8)
 
     # Sample 1 (from tokens2): all positions match
     assert jnp.allclose(
-        combined.functional_inputs[1, :, :],
+        combined.functional_inputs[1],
         jnp.array([[30.0], [40.0], [50.0]])
     )
 
@@ -679,3 +679,45 @@ def test_combine_padding_mask_set():
 
     # Sample 1 (from tokens2): all tokens are 1
     assert jnp.array_equal(combined.padding_mask[1], jnp.array([1, 1, 1]))
+
+
+def test_combine_error_different_final_dimension_with_functional_inputs():
+    """Test error when functional_inputs have different final dimensions.
+
+    The final dimension of functional_inputs must be consistent since it
+    represents the batch dimension. Different dimensions indicate
+    inconsistent functional input specifications.
+    """
+    pytree = {
+        'a': jnp.array([[[1.0], [2.0]]]),  # (1, 2, 1)
+    }
+
+    # functional_inputs with final dimension of size 1
+    func_inputs1 = {
+        'a': jnp.array([[[10.0], [20.0]]]),  # (1, 2, 1)
+    }
+
+    # functional_inputs with final dimension of size 2
+    func_inputs2 = {
+        'a': jnp.array([[[30.0, 31.0], [40.0, 41.0]]]),  # (1, 2, 2)
+    }
+
+    tokens1 = Tokens.from_pytree(
+        pytree,
+        independence=Independence(local=[]),
+        functional_inputs=func_inputs1,
+        sample_ndims=1,
+        batch_ndims={'a': 1}
+    )
+
+    tokens2 = Tokens.from_pytree(
+        pytree,
+        independence=Independence(local=[]),
+        functional_inputs=func_inputs2,
+        sample_ndims=1,
+        batch_ndims={'a': 1}
+    )
+
+    # Should raise error for mismatched final dimensions in functional_inputs
+    with pytest.raises(ValueError, match="functional_inputs"):
+        combine_tokens(tokens1, tokens2)
