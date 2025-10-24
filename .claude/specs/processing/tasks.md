@@ -210,6 +210,42 @@ Each task:
     - _Leverage: tfmpe/preprocessing/tokens.py_
     - _Requirements: 1.1-1.3_
 
+- [x] 7.5 Implement combine_tokens functionality with tests
+  - Purpose: Enable combining multiple Tokens objects for accumulating datasets
+  - _Requirements: 1.1-1.5, 8.1-8.4_
+
+  - [x] 7.5.1 Create combine_tokens tests in test/test_preprocessing/test_combine.py
+    - File: test/test_preprocessing/test_combine.py
+    - Test combining two Tokens with same n_tokens (no padding needed)
+    - Test combining Tokens with different n_tokens (padding required)
+    - Test that labels are concatenated correctly along batch dimension
+    - Test self_attention_mask is padded to max(n_tokens)
+    - Test functional_inputs are combined if present, None if absent
+    - Test that slices metadata is preserved (same for both inputs)
+    - Test combining >2 Tokens via repeated calls
+    - Test error when tokens have different key_order
+    - Test error when tokens have different independence specs
+    - Add fixtures to test/conftest.py as needed
+    - _Leverage: sfmpe_legacy/test/test_datasets.py:8-241 (combine_data tests)_
+    - _Requirements: 1.1-1.5, 8.1-8.4_
+
+  - [x] 7.5.2 Implement combine_tokens function in tfmpe/preprocessing/combine.py
+    - File: tfmpe/preprocessing/combine.py
+    - Implement `combine_tokens(tokens1: Tokens, tokens2: Tokens) -> Tokens`
+    - Validate both have same key_order and independence
+    - Compute max_n_tokens = max of both tokens' n_tokens dimension
+    - Pad data arrays to max_n_tokens (use jnp.pad on token dimension)
+    - Pad self_attention_mask to (max_n_tokens, max_n_tokens) with zeros
+    - Concatenate padded data along sample/batch dimension (axis 0)
+    - Concatenate labels along sample/batch dimension
+    - Combine functional_inputs if both present, else None
+    - Return new Tokens with combined arrays, same slices/label_map/key_order
+    - Pad padding_mask if present (though currently always None)
+    - Add type annotations using `jaxtyping.Array`
+    - Update tfmpe/preprocessing/__init__.py to export function
+    - _Leverage: sfmpe_legacy/sfmpe/util/dataloader.py:649-744 (combine_data logic)_
+    - _Requirements: 1.1-1.5, 8.1-8.4_
+
 ### Phase 3: Data Generation & Integration
 
 - [ ] 8.0 Implement data generation with tests

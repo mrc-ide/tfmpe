@@ -36,7 +36,7 @@ class Tokens:
     self_attention_mask : Array
         Self-attention mask for all tokens, shape
         (n_total_tokens, n_total_tokens)
-    padding_mask : Array
+    padding_mask : Optional[Array]
         Padding mask, shape (*sample_shape, n_total_tokens)
     functional_inputs : Optional[Array]
         Functional inputs for tokens, shape (*sample_shape,
