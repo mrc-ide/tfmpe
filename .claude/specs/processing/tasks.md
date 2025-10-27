@@ -248,11 +248,11 @@ Each task:
 
 ### Phase 3: Data Generation & Integration
 
-- [ ] 8.0 Implement data generation with tests
+- [x] 8.0 Implement data generation with tests
   - Purpose: Create generator and static dataset functions
   - _Requirements: 4.1-4.5, 5.1-5.4_
 
-  - [ ] 8.1 Create data generation tests in test/test_preprocessing/test_generation.py
+  - [x] 8.1 Create data generation tests in test/test_preprocessing/test_generation.py
     - File: test/test_preprocessing/test_generation.py
     - Test `TokenGenerator` yields correct number of batches
     - Test batch shapes are consistent
@@ -263,7 +263,7 @@ Each task:
     - _Leverage: test/conftest.py for mock prior/simulator_
     - _Requirements: 4.1-4.5, 5.1-5.4_
 
-  - [ ] 8.2 Create TokenGenerator class in tfmpe/preprocessing/generator.py
+  - [x] 8.2 Create TokenGenerator class in tfmpe/preprocessing/generator.py
     - File: tfmpe/preprocessing/generator.py
     - Implement `TokenGenerator` with `__init__`, `__iter__`, `__len__`
     - Generate batches on-demand (no pre-allocation)
