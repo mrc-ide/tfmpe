@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import jax.numpy as jnp
+from jax.tree_util import register_pytree_node_class
 from jaxtyping import Array
 
 from .flatten import flatten_pytree, update_flat_array
@@ -18,6 +19,7 @@ from .reconstruct import decode_pytree, decode_pytree_keys
 from .token_view import TokenView
 
 
+@register_pytree_node_class
 @dataclass
 class Tokens:
     """
@@ -369,4 +371,59 @@ class Tokens:
             label_map=self.label_map,
             key_order=self.key_order,
             independence=self.independence
+        )
+
+    def tree_flatten(self) -> Tuple[Tuple, Dict[str, Any]]:
+        """
+        Flatten Tokens for JAX PyTree operations.
+
+        Returns
+        -------
+        Tuple[Tuple, Dict[str, Any]]
+            (children, aux_data) where children are arrays with sample
+            dimension that get transformed by tree.map, and aux_data
+            contains static metadata
+        """
+        children = (
+            self.data,
+            self.labels,
+            self.padding_mask,
+            self.functional_inputs
+        )
+        aux_data = {
+            'self_attention_mask': self.self_attention_mask,
+            'slices': self.slices,
+            'label_map': self.label_map,
+            'key_order': self.key_order,
+            'independence': self.independence
+        }
+        return (children, aux_data)
+
+    @classmethod
+    def tree_unflatten(
+        cls,
+        aux_data: Dict[str, Any],
+        children: Tuple
+    ) -> 'Tokens':
+        """
+        Unflatten Tokens from JAX PyTree operations.
+
+        Parameters
+        ----------
+        aux_data : Dict[str, Any]
+            Static metadata
+        children : Tuple
+            Arrays with sample dimension
+
+        Returns
+        -------
+        Tokens
+            Reconstructed Tokens object
+        """
+        return cls(
+            data=children[0],
+            labels=children[1],
+            padding_mask=children[2],
+            functional_inputs=children[3],
+            **aux_data
         )
