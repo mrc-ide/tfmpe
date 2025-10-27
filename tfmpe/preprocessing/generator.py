@@ -10,6 +10,7 @@ import jax.random as jr
 from jaxtyping import Array
 
 from .tokens import Tokens
+from .utils import Independence
 
 
 class TokenGenerator:
@@ -27,7 +28,7 @@ class TokenGenerator:
         Function that takes (key, params) and returns simulated observations
     functional_input_fn : Optional[Callable]
         Function that takes params and returns functional inputs
-    independence : dict
+    independence : Independence
         Independence specification for mask generation
     n_samples : int
         Total number of samples to generate
@@ -58,7 +59,7 @@ class TokenGenerator:
         functional_input_fn: Optional[
             Callable[[dict[str, Array]], dict[str, Array]]
         ],
-        independence: dict,
+        independence: Independence,
         n_samples: int,
         batch_size: int,
         seed: int,

@@ -12,6 +12,7 @@ from jaxtyping import Array
 
 from tfmpe.preprocessing import Tokens
 from tfmpe.preprocessing import TokenGenerator
+from tfmpe.preprocessing import Independence
 
 
 @pytest.fixture
@@ -43,11 +44,11 @@ def mock_simulator_fn():
 @pytest.fixture
 def simple_independence():
     """Simple independence specification."""
-    return {
-        'local': ['obs', 'theta'],
-        'cross': [('mu', 'obs'), ('obs', 'mu')],
-        'cross_local': [('theta', 'obs', None)]
-    }
+    return Independence(
+        local=['obs', 'theta'],
+        cross=[('mu', 'obs'), ('obs', 'mu')],
+        cross_local=[('theta', 'obs', None)]
+    )
 
 
 class TestTokenGenerator:
