@@ -103,7 +103,7 @@ This implementation follows a test-driven development approach, creating tests b
   - _Leverage: sfmpe_legacy/sfmpe/nn/transformer/encoder.py (reference)_
   - _Requirements: 3.2_
 
-- [ ] 3.3 Add test for EncoderBlock to test_encoder.py
+- [x] 3.3 Add test for EncoderBlock to test_encoder.py
   - File: test/test_nn/test_transformer/test_encoder.py (modify)
   - Test output shape preserved
   - Test self-attention with mask (verify mask zeros out connections)
