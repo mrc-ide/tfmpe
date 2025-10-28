@@ -2,7 +2,7 @@
 
 ## Task Overview
 
-This implementation follows a test-driven development approach, creating tests before implementations for each component. The transformer is built bottom-up: configuration ’ embedding ’ encoder/decoder blocks ’ full transformer ’ benchmarks. Each task is atomic, touching 1-3 related files and completable in 15-30 minutes.
+This implementation follows a test-driven development approach, creating tests before implementations for each component. The transformer is built bottom-up: configuration ï¿½ embedding ï¿½ encoder/decoder blocks ï¿½ full transformer ï¿½ benchmarks. Each task is atomic, touching 1-3 related files and completable in 15-30 minutes.
 
 ## Steering Document Compliance
 
@@ -46,7 +46,7 @@ This implementation follows a test-driven development approach, creating tests b
 
 - [ ] 2.1 Create test for GaussianFourierEmbedding in test/test_nn/test_transformer/test_embedding.py
   - File: test/test_nn/test_transformer/test_embedding.py (create)
-  - Test output shape: input (..., in_dim) ’ output (..., out_dim)
+  - Test output shape: input (..., in_dim) ï¿½ output (..., out_dim)
   - Test with different input shapes using @pytest.mark.parametrize
   - Test that output contains both sin and cos components
   - Purpose: Verify Gaussian Fourier embedding shape and behavior
@@ -55,7 +55,7 @@ This implementation follows a test-driven development approach, creating tests b
 - [ ] 2.2 Implement GaussianFourierEmbedding in tfmpe/nn/transformer/embedding.py
   - File: tfmpe/nn/transformer/embedding.py (create)
   - Implement nnx.Module with random Gaussian matrix for frequency basis
-  - __call__ computes sin/cos of 2À * input @ basis
+  - __call__ computes sin/cos of 2ï¿½ * input @ basis
   - Concatenate cos and sin components
   - Include numpy-style docstring with shape specifications
   - Purpose: Fourier feature encoding for continuous indices
@@ -64,7 +64,7 @@ This implementation follows a test-driven development approach, creating tests b
 
 - [ ] 2.3 Add tests for Embedding layer to test_embedding.py
   - File: test/test_nn/test_transformer/test_embedding.py (modify)
-  - Test output shape without indices: input (batch, n_tokens, value_dim) ’ (batch, n_tokens, latent_dim)
+  - Test output shape without indices: input (batch, n_tokens, value_dim) ï¿½ (batch, n_tokens, latent_dim)
   - Test output shape with indices
   - Test output shape with functional_inputs
   - Test time broadcasting from scalar to (batch, 1)
@@ -85,15 +85,15 @@ This implementation follows a test-driven development approach, creating tests b
 
 ### 3. Encoder/Decoder Blocks
 
-- [ ] 3.1 Create test for MLP in test/test_nn/test_transformer/test_encoder.py
+- [x] 3.1 Create test for MLP in test/test_nn/test_transformer/test_encoder.py
   - File: test/test_nn/test_transformer/test_encoder.py (create)
-  - Test output shape preservation: (batch, n_tokens, latent_dim) ’ (batch, n_tokens, latent_dim)
+  - Test output shape preservation: (batch, n_tokens, latent_dim) ï¿½ (batch, n_tokens, latent_dim)
   - Test with different n_ff values using @pytest.mark.parametrize
   - Test dropout in train vs eval mode
   - Purpose: Verify MLP feedforward network before encoder/decoder
   - _Requirements: 3.2_
 
-- [ ] 3.2 Implement MLP module in tfmpe/nn/transformer/encoder.py
+- [x] 3.2 Implement MLP module in tfmpe/nn/transformer/encoder.py
   - File: tfmpe/nn/transformer/encoder.py (create)
   - Create FFLayer with nnx.Linear, nnx.Dropout, activation
   - Use nnx.vmap and nnx.scan to create n_ff layers
@@ -122,7 +122,7 @@ This implementation follows a test-driven development approach, creating tests b
 
 - [ ] 3.5 Add test for DecoderBlock to test_encoder.py
   - File: test/test_nn/test_transformer/test_encoder.py (modify)
-  - Test output shape: query (batch, n_q, latent_dim) ’ (batch, n_q, latent_dim)
+  - Test output shape: query (batch, n_q, latent_dim) ï¿½ (batch, n_q, latent_dim)
   - Test cross-attention with mask
   - Purpose: Verify decoder block cross-attention
   - _Requirements: 2.4, 3.2_
@@ -202,7 +202,7 @@ This implementation follows a test-driven development approach, creating tests b
 
 - [ ] 5.1 Create integration test in test/test_nn/test_transformer/test_integration.py
   - File: test/test_nn/test_transformer/test_integration.py (create)
-  - Create PyTree ’ Tokens ’ split to context/param views
+  - Create PyTree ï¿½ Tokens ï¿½ split to context/param views
   - Initialize Transformer with config
   - Forward pass through transformer
   - Verify output shape matches param_tokens.data shape
