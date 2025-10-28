@@ -110,7 +110,7 @@ This implementation follows a test-driven development approach, creating tests b
   - Purpose: Verify encoder block before full transformer
   - _Requirements: 2.2, 3.2_
 
-- [ ] 3.4 Implement EncoderBlock in encoder.py
+- [x] 3.4 Implement EncoderBlock in encoder.py
   - File: tfmpe/nn/transformer/encoder.py (modify)
   - __init__ creates nnx.MultiHeadAttention, nnx.LayerNorm, MLP
   - __call__ applies: self_attention + residual + norm + MLP + residual + norm
@@ -120,14 +120,14 @@ This implementation follows a test-driven development approach, creating tests b
   - _Leverage: sfmpe_legacy/sfmpe/nn/transformer/encoder.py (reference)_
   - _Requirements: 2.2, 3.2_
 
-- [ ] 3.5 Add test for DecoderBlock to test_encoder.py
+- [x] 3.5 Add test for DecoderBlock to test_encoder.py
   - File: test/test_nn/test_transformer/test_encoder.py (modify)
-  - Test output shape: query (batch, n_q, latent_dim) � (batch, n_q, latent_dim)
+  - Test output shape: query (batch, n_q, latent_dim) → (batch, n_q, latent_dim)
   - Test cross-attention with mask
   - Purpose: Verify decoder block cross-attention
   - _Requirements: 2.4, 3.2_
 
-- [ ] 3.6 Implement DecoderBlock in encoder.py
+- [x] 3.6 Implement DecoderBlock in encoder.py
   - File: tfmpe/nn/transformer/encoder.py (modify)
   - __init__ creates nnx.MultiHeadAttention, nnx.LayerNorm, MLP
   - __call__ applies: cross_attention(query=x, key=context, value=context) + residual + norm + MLP + residual + norm

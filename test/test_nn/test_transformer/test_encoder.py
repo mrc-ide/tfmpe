@@ -7,7 +7,7 @@ from jax import random
 from flax import nnx
 
 from tfmpe.nn.transformer.config import TransformerConfig
-from tfmpe.nn.transformer.encoder import MLP, EncoderBlock
+from tfmpe.nn.transformer.encoder import MLP, EncoderBlock, DecoderBlock
 
 
 class TestMLP:
@@ -186,6 +186,80 @@ class TestEncoderBlock:
         output_unmasked = encoder_block2(inputs, mask=None)
 
         # Both should have correct shape
+        expected_shape = (*sample_shape, config.latent_dim)
+        assert output_masked.shape == expected_shape, (
+            f"Expected shape {expected_shape}, got {output_masked.shape}"
+        )
+        assert output_unmasked.shape == expected_shape, (
+            f"Expected shape {expected_shape}, got {output_unmasked.shape}"
+        )
+
+
+class TestDecoderBlock:
+    """Tests for DecoderBlock cross-attention transformer block."""
+
+    @pytest.mark.parametrize(
+        "sample_shape,context_shape",
+        [
+            ((4, 10), (4, 20)),  # (batch, n_q) vs (batch, n_context)
+            ((2, 3, 10), (2, 3, 20)),  # (samples, batch, n_q) vs context
+        ],
+    )
+    def test_output_shape_with_cross_attention(
+        self,
+        sample_shape: tuple[int, ...],
+        context_shape: tuple[int, ...],
+    ) -> None:
+        """Test DecoderBlock output shape with cross-attention.
+
+        Verifies that DecoderBlock preserves query shape through
+        cross-attention and feedforward layers, even when context
+        has different sequence length.
+
+        Parameters
+        ----------
+        sample_shape : tuple
+            Shape of query input excluding latent_dim dimension
+        context_shape : tuple
+            Shape of context input excluding latent_dim dimension
+        """
+        rngs = nnx.Rngs(0)
+        config = TransformerConfig(
+            latent_dim=64,
+            n_encoder=2,
+            n_decoder=2,
+            n_heads=4,
+            n_ff=2,
+            label_dim=16,
+            index_out_dim=32,
+            dropout=0.1,
+        )
+
+        decoder_block = DecoderBlock(config=config, rngs=rngs)
+
+        # Query and context inputs
+        query = jnp.ones((*sample_shape, config.latent_dim))
+        context = jnp.ones((*context_shape, config.latent_dim))
+
+        # Get n_tokens from shapes
+        n_q = sample_shape[-1]
+        n_context = context_shape[-1]
+
+        # Create a causal mask for queries (lower triangular)
+        mask = jnp.tril(jnp.ones((n_q, n_context)))
+
+        # Test with mask
+        output_masked = decoder_block(
+            query, context=context, mask=mask
+        )
+
+        # Test without mask
+        decoder_block2 = DecoderBlock(config=config, rngs=rngs)
+        output_unmasked = decoder_block2(
+            query, context=context, mask=None
+        )
+
+        # Both should have shape matching query shape
         expected_shape = (*sample_shape, config.latent_dim)
         assert output_masked.shape == expected_shape, (
             f"Expected shape {expected_shape}, got {output_masked.shape}"

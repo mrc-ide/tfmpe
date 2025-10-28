@@ -2,6 +2,7 @@
 
 from typing import Callable, Optional
 
+import jax.numpy as jnp
 from jaxtyping import Array
 from flax import nnx
 
@@ -138,3 +139,206 @@ class MLP(nnx.Module):
             return x
 
         return forward(x, self.layers)
+
+
+class EncoderBlock(nnx.Module):
+    """Self-attention transformer encoder block.
+
+    Applies multi-head self-attention followed by feedforward network,
+    with residual connections and layer normalization after each
+    sub-layer.
+
+    Attributes
+    ----------
+    attention : nnx.MultiHeadAttention
+        Multi-head self-attention module
+    att_norm : nnx.LayerNorm
+        Layer normalization after attention
+    mlp : MLP
+        Feedforward network
+    ff_norm : nnx.LayerNorm
+        Layer normalization after feedforward
+    """
+
+    def __init__(
+        self,
+        config: TransformerConfig,
+        rngs: nnx.Rngs,
+    ) -> None:
+        """Initialize encoder block.
+
+        Parameters
+        ----------
+        config : TransformerConfig
+            Configuration containing latent_dim, n_heads, dropout
+        rngs : nnx.Rngs
+            Random number generator state
+        """
+        latent_dim = config.latent_dim
+        n_heads = config.n_heads
+
+        self.attention = nnx.MultiHeadAttention(
+            num_heads=n_heads,
+            in_features=latent_dim,
+            qkv_features=latent_dim,
+            use_bias=False,
+            broadcast_dropout=False,
+            dropout_rate=config.dropout,
+            decode=False,
+            rngs=rngs,
+        )
+        self.att_norm = nnx.LayerNorm(
+            num_features=latent_dim,
+            dtype=jnp.float32,
+            rngs=rngs,
+        )
+        self.mlp = MLP(config=config, rngs=rngs)
+        self.ff_norm = nnx.LayerNorm(
+            num_features=latent_dim,
+            dtype=jnp.float32,
+            rngs=rngs,
+        )
+
+    def __call__(
+        self,
+        x: Array,
+        mask: Optional[Array] = None,
+        deterministic: bool = False,
+    ) -> Array:
+        """Apply encoder block transformation.
+
+        Applies self-attention with residual connection and layer
+        normalization, followed by feedforward with residual connection
+        and layer normalization.
+
+        Parameters
+        ----------
+        x : Array
+            Input array of shape (..., latent_dim)
+        mask : Optional[Array]
+            Attention mask of shape (..., n_tokens, n_tokens).
+            Values of 0 are masked out (ignored in attention).
+        deterministic : bool
+            If True, disable dropout for deterministic inference.
+
+        Returns
+        -------
+        Array
+            Output array of shape (..., latent_dim)
+        """
+        # Self-attention with residual and norm
+        attn_out = self.attention(
+            x, x, x, mask=mask, deterministic=deterministic
+        )
+        x = x + attn_out
+        x = self.att_norm(x)
+
+        # Feedforward with residual and norm
+        ff_out = self.mlp(x)
+        x = x + ff_out
+        x = self.ff_norm(x)
+
+        return x
+
+
+class DecoderBlock(nnx.Module):
+    """Cross-attention transformer decoder block.
+
+    Applies multi-head cross-attention between query and context,
+    followed by feedforward network, with residual connections and
+    layer normalization after each sub-layer.
+
+    Attributes
+    ----------
+    attention : nnx.MultiHeadAttention
+        Multi-head cross-attention module
+    att_norm : nnx.LayerNorm
+        Layer normalization after attention
+    mlp : MLP
+        Feedforward network
+    ff_norm : nnx.LayerNorm
+        Layer normalization after feedforward
+    """
+
+    def __init__(
+        self,
+        config: TransformerConfig,
+        rngs: nnx.Rngs,
+    ) -> None:
+        """Initialize decoder block.
+
+        Parameters
+        ----------
+        config : TransformerConfig
+            Configuration containing latent_dim, n_heads, dropout
+        rngs : nnx.Rngs
+            Random number generator state
+        """
+        latent_dim = config.latent_dim
+        n_heads = config.n_heads
+
+        self.attention = nnx.MultiHeadAttention(
+            num_heads=n_heads,
+            in_features=latent_dim,
+            qkv_features=latent_dim,
+            use_bias=False,
+            broadcast_dropout=False,
+            dropout_rate=config.dropout,
+            decode=False,
+            rngs=rngs,
+        )
+        self.att_norm = nnx.LayerNorm(
+            num_features=latent_dim,
+            dtype=jnp.float32,
+            rngs=rngs,
+        )
+        self.mlp = MLP(config=config, rngs=rngs)
+        self.ff_norm = nnx.LayerNorm(
+            num_features=latent_dim,
+            dtype=jnp.float32,
+            rngs=rngs,
+        )
+
+    def __call__(
+        self,
+        x: Array,
+        context: Array,
+        mask: Optional[Array] = None,
+        deterministic: bool = False,
+    ) -> Array:
+        """Apply decoder block transformation.
+
+        Applies cross-attention with residual connection and layer
+        normalization, followed by feedforward with residual connection
+        and layer normalization.
+
+        Parameters
+        ----------
+        x : Array
+            Query array of shape (..., n_q, latent_dim)
+        context : Array
+            Context (key/value) array of shape (..., n_context, latent_dim)
+        mask : Optional[Array]
+            Attention mask of shape (..., n_q, n_context).
+            Values of 0 are masked out (ignored in attention).
+        deterministic : bool
+            If True, disable dropout for deterministic inference.
+
+        Returns
+        -------
+        Array
+            Output array of shape (..., n_q, latent_dim)
+        """
+        # Cross-attention with residual and norm
+        attn_out = self.attention(
+            x, context, context, mask=mask, deterministic=deterministic
+        )
+        x = x + attn_out
+        x = self.att_norm(x)
+
+        # Feedforward with residual and norm
+        ff_out = self.mlp(x)
+        x = x + ff_out
+        x = self.ff_norm(x)
+
+        return x
