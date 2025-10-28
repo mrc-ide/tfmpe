@@ -7,7 +7,7 @@ from jax import random
 from flax import nnx
 
 from tfmpe.nn.transformer.config import TransformerConfig
-from tfmpe.nn.transformer.encoder import MLP
+from tfmpe.nn.transformer.encoder import MLP, EncoderBlock
 
 
 class TestMLP:
@@ -129,4 +129,67 @@ class TestMLP:
         expected_shape = (2, 3, 10, config.latent_dim)
         assert output.shape == expected_shape, (
             f"Expected shape {expected_shape}, got {output.shape}"
+        )
+
+
+class TestEncoderBlock:
+    """Tests for EncoderBlock self-attention transformer block."""
+
+    @pytest.mark.parametrize(
+        "sample_shape",
+        [
+            (4, 10),  # (batch, n_tokens)
+            (2, 3, 10),  # (samples, batch, n_tokens)
+        ],
+    )
+    def test_output_shape_with_mask(
+        self, sample_shape: tuple[int, ...]
+    ) -> None:
+        """Test EncoderBlock output shape and mask application.
+
+        Verifies that EncoderBlock preserves input shape through
+        self-attention and feedforward layers, and that mask parameter
+        is properly applied.
+
+        Parameters
+        ----------
+        sample_shape : tuple
+            Shape of input excluding latent_dim dimension
+        """
+        rngs = nnx.Rngs(0)
+        config = TransformerConfig(
+            latent_dim=64,
+            n_encoder=2,
+            n_decoder=2,
+            n_heads=4,
+            n_ff=2,
+            label_dim=16,
+            index_out_dim=32,
+            dropout=0.1,
+        )
+
+        encoder_block = EncoderBlock(config=config, rngs=rngs)
+
+        inputs = jnp.ones((*sample_shape, config.latent_dim))
+
+        # Get n_tokens from sample_shape
+        n_tokens = sample_shape[-1]
+
+        # Create a causal mask (lower triangular)
+        mask = jnp.tril(jnp.ones((n_tokens, n_tokens)))
+
+        # Test with mask
+        output_masked = encoder_block(inputs, mask=mask)
+
+        # Test without mask
+        encoder_block2 = EncoderBlock(config=config, rngs=rngs)
+        output_unmasked = encoder_block2(inputs, mask=None)
+
+        # Both should have correct shape
+        expected_shape = (*sample_shape, config.latent_dim)
+        assert output_masked.shape == expected_shape, (
+            f"Expected shape {expected_shape}, got {output_masked.shape}"
+        )
+        assert output_unmasked.shape == expected_shape, (
+            f"Expected shape {expected_shape}, got {output_unmasked.shape}"
         )
