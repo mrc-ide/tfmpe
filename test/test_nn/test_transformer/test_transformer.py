@@ -4,7 +4,7 @@ import pytest
 import jax.numpy as jnp
 from flax import nnx
 
-from tfmpe.preprocessing import Tokens
+from tfmpe.preprocessing import Tokens, Independence
 from tfmpe.preprocessing.token_view import TokenView
 from tfmpe.nn.transformer.config import TransformerConfig
 
@@ -20,19 +20,19 @@ def simple_pytree():
 
 
 @pytest.fixture
-def simple_independence():
+def simple_independence() -> Independence:
     """Independence spec for simple hierarchical structure."""
-    return {
-        'local': ['obs', 'theta'],
-        'cross': [('mu', 'obs'), ('obs', 'mu')],
-        'cross_local': [('theta', 'obs', None)],
-    }
+    return Independence(
+        local=['obs', 'theta'],
+        cross=[('mu', 'obs'), ('obs', 'mu')],
+        cross_local=[('theta', 'obs', None)],
+    )
 
 
 @pytest.fixture
 def tokens_obj(
     simple_pytree: dict,
-    simple_independence: dict,
+    simple_independence: Independence,
 ) -> Tokens:
     """Create tokens from simple structure."""
     return Tokens.from_pytree(
@@ -188,11 +188,11 @@ class TestTransformerForwardPass:
             'context': jnp.ones((2, 1)),
             'param': jnp.ones((n_param_tokens, 1)),
         }
-        independence = {
-            'local': ['param'],
-            'cross': [('context', 'param'), ('param', 'context')],
-            'cross_local': [],
-        }
+        independence = Independence(
+            local=['param'],
+            cross=[('context', 'param'), ('param', 'context')],
+            cross_local=[],
+        )
 
         tokens = Tokens.from_pytree(
             pytree,
@@ -341,11 +341,11 @@ class TestTransformerSampleDimensions:
             'context': jnp.ones((2, 4, 3, 1)),
             'param': jnp.ones((2, 4, 5, 1)),
         }
-        independence = {
-            'local': ['param'],
-            'cross': [('context', 'param'), ('param', 'context')],
-            'cross_local': [],
-        }
+        independence = Independence(
+            local=['param'],
+            cross=[('context', 'param'), ('param', 'context')],
+            cross_local=[],
+        )
 
         tokens = Tokens.from_pytree(
             pytree,
@@ -394,11 +394,7 @@ class TestTransformerSampleDimensions:
         context_pytree = {
             'context': jnp.ones((1, 3, 1)),
         }
-        context_independence = {
-            'local': [],
-            'cross': [],
-            'cross_local': [],
-        }
+        context_independence = Independence()
         context_tokens = Tokens.from_pytree(
             context_pytree,
             independence=context_independence,
@@ -410,11 +406,7 @@ class TestTransformerSampleDimensions:
         param_pytree = {
             'param': jnp.ones((4, 5, 1)),
         }
-        param_independence = {
-            'local': [],
-            'cross': [],
-            'cross_local': [],
-        }
+        param_independence = Independence()
         param_tokens = Tokens.from_pytree(
             param_pytree,
             independence=param_independence,
@@ -465,11 +457,7 @@ class TestTransformerSampleDimensions:
         context_pytree = {
             'context': jnp.ones((1, 3, 1)),
         }
-        context_independence = {
-            'local': [],
-            'cross': [],
-            'cross_local': [],
-        }
+        context_independence = Independence()
         context_tokens = Tokens.from_pytree(
             context_pytree,
             independence=context_independence,
@@ -480,11 +468,7 @@ class TestTransformerSampleDimensions:
         param_pytree = {
             'param': jnp.ones((4, 5, 1)),
         }
-        param_independence = {
-            'local': [],
-            'cross': [],
-            'cross_local': [],
-        }
+        param_independence = Independence()
         param_tokens = Tokens.from_pytree(
             param_pytree,
             independence=param_independence,
