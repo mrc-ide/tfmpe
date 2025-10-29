@@ -10,6 +10,7 @@ import jax.numpy as jnp
 from jaxtyping import Array
 
 from .reconstruct import decode_pytree_keys
+from .masks import build_cross_attention_mask
 from .utils import SliceInfo
 
 if TYPE_CHECKING:
@@ -193,6 +194,47 @@ class TokenView:
             return self.parent.functional_inputs[..., indices, :]
         else:
             return self.parent.functional_inputs[indices, :]
+
+    @property
+    def sample_shape(self) -> tuple:
+        """
+        Get sample shape from parent Tokens.
+
+        Returns
+        -------
+        tuple
+            Sample shape tuple from parent
+        """
+        return self.parent.sample_shape
+
+    def cross_attention_mask(
+        self,
+        key_view: 'TokenView',
+    ) -> Array:
+        """
+        Get cross-attention mask from this view (query) to key view.
+
+        Parameters
+        ----------
+        key_view : TokenView
+            Key view for cross-attention
+
+        Returns
+        -------
+        Array
+            Cross-attention mask for this query view attending to
+            key view
+        """
+        independence = (
+            self.parent.independence
+            if self.parent.independence is not None
+            else {}
+        )
+        return build_cross_attention_mask(
+            self.slices,
+            key_view.slices,
+            independence,
+        )
 
     def decode(self) -> Dict[str, Array]:
         """

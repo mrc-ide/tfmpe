@@ -1,6 +1,6 @@
 """Embedding layers for transformer architecture."""
 
-from typing import Optional
+from typing import Optional, Union
 
 from jax import numpy as jnp
 from jax import random
@@ -8,6 +8,7 @@ from flax import nnx
 from jaxtyping import Array
 
 from ...preprocessing.tokens import Tokens
+from ...preprocessing.token_view import TokenView
 
 
 class GaussianFourierEmbedding(nnx.Module):
@@ -127,12 +128,15 @@ class Embedding(nnx.Module):
             rngs=rngs,
         )
 
-    def __call__(self, tokens: Tokens) -> Array:
+    def __call__(
+        self,
+        tokens: Union[Tokens, TokenView],
+    ) -> Array:
         """Embed token data.
 
         Parameters
         ----------
-        tokens : Tokens
+        tokens : Union[Tokens, TokenView]
             Token data object containing values, labels, and
             optional functional inputs
 
