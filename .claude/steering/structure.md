@@ -43,6 +43,7 @@ This is a re-write of https://github.com/giovannic/sbijax, which you can find in
   * Always use named dependencies
   * Break out long imports onto multiple lines with parentheses
   * Imports are always at the top of the file
+  * Use relative imports where possible
 
 ### Standard Order
 
