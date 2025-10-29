@@ -249,14 +249,12 @@ class TestEmbedding:
         # Broadcast tokens to desired sample shape
         def broadcast_to_shape(x: jnp.ndarray) -> jnp.ndarray:
             """Broadcast array to sample shape."""
-            if x is None:
-                return None
             # Slice first element and broadcast to sample shape
             first = x[0]
             target_shape = sample_shape + first.shape
             return jnp.broadcast_to(first, target_shape)
 
-        tokens = jax.tree_map(
+        tokens = jax.tree.map(
             broadcast_to_shape,
             tokens_without_functional_inputs,
         )
