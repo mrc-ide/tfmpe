@@ -138,7 +138,7 @@ This implementation follows a test-driven development approach, creating tests b
 
 ### 4. Main Transformer
 
-- [ ] 4.1 Create test for Transformer in test/test_nn/test_transformer/test_transformer.py
+- [x] 4.1 Create test for Transformer in test/test_nn/test_transformer/test_transformer.py
   - File: test/test_nn/test_transformer/test_transformer.py (create)
   - Create fixture for sample Tokens objects (context and parameters)
   - Test __init__ accepts config dataclass
@@ -151,7 +151,7 @@ This implementation follows a test-driven development approach, creating tests b
   - _Leverage: test/test_preprocessing/test_tokens_basic.py (Tokens fixtures)_
   - _Requirements: 1.1-1.5, 2.1-2.5, 3.4_
 
-- [ ] 4.2 Implement Transformer.__init__ in tfmpe/nn/transformer/transformer.py
+- [x] 4.2 Implement Transformer.__init__ in tfmpe/nn/transformer/transformer.py
   - File: tfmpe/nn/transformer/transformer.py (create)
   - __init__ creates: Embedding, n_encoder EncoderBlocks via nnx.vmap, n_decoder DecoderBlocks via nnx.vmap, output Linear
   - Accept config: TransformerConfig, value_dim, n_labels, index_dim, rngs
@@ -160,7 +160,7 @@ This implementation follows a test-driven development approach, creating tests b
   - _Leverage: sfmpe_legacy/sfmpe/nn/transformer/transformer.py (reference)_
   - _Requirements: 1.1-1.5, 4.11-4.12_
 
-- [ ] 4.3 Implement Transformer.encode method in transformer.py
+- [x] 4.3 Implement Transformer.encode method in transformer.py
   - File: tfmpe/nn/transformer/transformer.py (modify)
   - Extract data, labels from Tokens object
   - Embed tokens with time
@@ -170,7 +170,7 @@ This implementation follows a test-driven development approach, creating tests b
   - Purpose: Encode context or parameter tokens
   - _Requirements: 2.1-2.2_
 
-- [ ] 4.4 Implement Transformer.decode method in transformer.py
+- [x] 4.4 Implement Transformer.decode method in transformer.py
   - File: tfmpe/nn/transformer/transformer.py (modify)
   - Embed parameter tokens with time
   - Encode parameters with encoder blocks
@@ -181,7 +181,7 @@ This implementation follows a test-driven development approach, creating tests b
   - Purpose: Decode parameters conditioned on context
   - _Requirements: 2.3-2.5_
 
-- [ ] 4.5 Implement Transformer.__call__ method in transformer.py
+- [x] 4.5 Implement Transformer.__call__ method in transformer.py
   - File: tfmpe/nn/transformer/transformer.py (modify)
   - Validate context_tokens.sample_shape == param_tokens.sample_shape
   - Encode context tokens
@@ -191,7 +191,7 @@ This implementation follows a test-driven development approach, creating tests b
   - Purpose: End-to-end forward pass through transformer
   - _Requirements: 1.1-1.5, 2.5_
 
-- [ ] 4.6 Update tfmpe/nn/transformer/__init__.py to export classes
+- [x] 4.6 Update tfmpe/nn/transformer/__init__.py to export classes
   - File: tfmpe/nn/transformer/__init__.py (modify)
   - Import and expose: TransformerConfig, Transformer
   - Update __all__ list
