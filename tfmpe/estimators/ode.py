@@ -107,23 +107,26 @@ def solve_backward_ode(
 
 def solve_augmented_ode(
     vf_fn: Callable[[Array, Scalar], Array],
-    x0: Array,
+    x1: Array,
     solver,
     rtol: float = 1e-5,
     atol: float = 1e-5,
     rng: PRNGKeyArray = None,
     n_epsilon: int = 1,
 ) -> Tuple[Array, Scalar]:
-    """Solve augmented ODE with trace-based log determinant.
+    """Solve augmented backward ODE for FFJORD log probability.
 
     Augmented state: [x, log_det_jacobian]
+
+    Solves backward from t=1 to t=0 using FFJORD algorithm.
+    Uses stochastic trace estimation via VJP.
 
     Parameters
     ----------
     vf_fn : Callable
-        Vector field function f(x, t) -> Array
-    x0 : Array
-        Initial state, shape (*state_shape)
+        Vector field function f(x, t) -> Array (forward direction)
+    x1 : Array
+        Final state at t=1, shape (*state_shape)
     solver : diffrax solver
         Solver instance
     rtol : float
@@ -138,15 +141,18 @@ def solve_augmented_ode(
     Returns
     -------
     Tuple[Array, Scalar]
-        (final_x, final_log_det_jacobian)
+        (final_x at t=0, final_log_det_jacobian)
     """
     if rng is None:
         rng = jax.random.PRNGKey(0)
 
-    # Pre-sample epsilon array for the ODE
+    # Pre-sample epsilon array for stochastic trace estimation
     epsilon_array = jax.random.normal(
-        rng, (n_epsilon,) + x0.shape
+        rng, (n_epsilon,) + x1.shape
     )
+
+    # Backward integration: negate both time and vector field
+    vector_sign = -1.0
 
     def augmented_ode_func(
         t: Scalar,
@@ -155,9 +161,17 @@ def solve_augmented_ode(
     ) -> Tuple[Array, Scalar]:
         x, log_det = aug_state
 
-        # Compute vector field
+        # Map ODE time back to original time direction
+        # ODE integrates from t=1 to t=0 as t goes from -1 to 0
+        # So actual time is -t
+        actual_time = -t
+
+        # Compute vector field at actual time
         def vf_wrapper(x_inner):
-            return vf_fn(x_inner, t)
+            # Apply vector sign to both time and dynamics
+            return vector_sign * vf_fn(
+                x_inner, actual_time
+            )
 
         # Compute trace via stochastic VJP
         # tr(∂f/∂x) ≈ mean_i[eps_i^T @ (∂f/∂x)^T @ eps_i]
@@ -173,23 +187,23 @@ def solve_augmented_ode(
         )(epsilon_array)
         trace_estimate = jnp.mean(trace_estimates)
 
-        dx_dt = vf_wrapper(x)
-        dlog_det_dt = trace_estimate
+        # Return augmented dynamics
+        f_x = vf_wrapper(x)
+        return (f_x, -trace_estimate)
 
-        return (dx_dt, dlog_det_dt)
-
-    # Initial augmented state
-    aug_y0 = (x0, jnp.array(0.0))
+    # Initial augmented state at t=1
+    aug_y0 = (x1, jnp.array(0.0))
 
     step_controller = diffrax.PIDController(
         rtol=rtol,
         atol=atol,
     )
+    # Integrate from -1 to 0 (equivalent to t=1 to t=0)
     solution = diffrax.diffeqsolve(
         diffrax.ODETerm(augmented_ode_func),
         solver,
-        t0=0.0,
-        t1=1.0,
+        t0=-1.0,
+        t1=0.0,
         dt0=None,
         y0=aug_y0,
         stepsize_controller=step_controller,
@@ -197,8 +211,7 @@ def solve_augmented_ode(
     )
 
     # solution.ys is a tuple (x_trajectory, log_det_trajectory)
-    # Each has shape (num_saves, *state_shape) or (num_saves,)
-    # With saveat=SaveAt(t1=True), num_saves=1
+    # With saveat=SaveAt(t1=True), each has 1 element along time
     final_x = solution.ys[0][0]
     final_log_det = solution.ys[1][0]
     return final_x, final_log_det
