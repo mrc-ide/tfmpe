@@ -1,9 +1,9 @@
-"""Unit tests for ODE solving helpers.
-"""
+"""Unit tests for ODE solving helpers."""
 
 import numpy as np
 import jax
 import jax.numpy as jnp
+from jax.scipy.stats import norm
 
 from tfmpe.estimators.ode import (
     solve_forward_ode,
@@ -14,11 +14,7 @@ from tfmpe.estimators.ode import (
 )
 
 
-# ============================================================================
 # Doubling Flow and Forward/Backward ODE
-# ============================================================================
-
-
 class TestSolveForwardODE:
     """Test forward ODE solver with doubling flow."""
 
@@ -129,74 +125,88 @@ class TestSolveBackwardODE:
         assert x0.shape == x1.shape
 
 
-# ============================================================================
 # Augmented ODE and Batch Operations
-# ============================================================================
-
-
 class TestSolveAugmentedODE:
     """Test augmented ODE with trace-based log determinant."""
 
-    def test_linear_vf_trace_2x2(self, solver):
-        """Test trace computation for linear vf with 2x2 matrix.
+    def test_constant_vf_preserves_density(self, solver):
+        """Test that constant VF (f=0) preserves Gaussian density.
 
-        For linear f(x) = A·x, analytical log_det_jacobian = log|det(A)|
-        Test with det(A) = 2.0 → log_det ≈ log(2)
+        For constant transform f(x)=0, the flow is identity.
+        Sample density should equal base density N(0,1).
         """
-        # Create 2x2 matrix A with det = 2.0
-        A = jnp.array([[2.0, 0.0], [0.0, 1.0]])
-        det_A = 2.0
-        expected_log_det = jnp.log(det_A)
+        def constant_vf(x, t):
+            return jnp.zeros_like(x)
 
-        def linear_vf(x, t):
-            return A @ x
+        # Sample from N(0, 1)
+        seed = jax.random.PRNGKey(42)
+        samples = jax.random.normal(seed, (100, 2))
 
-        x0 = jnp.array([1.0, 1.0])
+        # Compute expected log prob for N(0, 1)
+        expected_log_prob = jnp.sum(norm.logpdf(samples), axis=1)
 
-        x_final, log_det_jacobian = solve_augmented_ode(
-            linear_vf,
-            x0,
+        # Compute via augmented ODE using batch solver
+        rng_key = jax.random.PRNGKey(0)
+        x_final_batch, log_det_batch = batch_solve_augmented_ode(
+            constant_vf,
+            samples,
             solver,
             rtol=1e-5,
             atol=1e-5,
+            rng=rng_key,
+            n_epsilon=20,
         )
 
-        # Verify log determinant within tolerance
+        # Compute log prob: log_p(z_0) - log_det_jacobian
+        log_p_z0 = jnp.sum(norm.logpdf(x_final_batch), axis=1)
+        log_probs = log_p_z0 - log_det_batch
+
+        # Compare with expected
         np.testing.assert_allclose(
-            log_det_jacobian,
-            expected_log_det,
+            log_probs,
+            expected_log_prob,
             rtol=0.1,
-            atol=0.01,
+            atol=0.5,
         )
 
-    def test_linear_vf_trace_5x5(self, solver):
-        """Test trace computation for 5x5 matrix.
+    def test_doubling_vf_log_prob(self, solver):
+        """Test log prob computation for doubling VF.
 
-        For f(x) = A·x with det(A) = 2.5
+        For f(x) = log(2)·x, the flow scales samples by 2.
+        Sample density changes from N(0,1) to N(0,4).
         """
-        # Create 5x5 diagonal matrix with det = 2.5
-        A = jnp.eye(5) * jnp.array([2.0, 1.0, 1.0, 1.0, 1.25])
-        det_A = jnp.prod(jnp.diag(A))  # 2 * 1 * 1 * 1 * 1.25 = 2.5
-        expected_log_det = jnp.log(det_A)
+        def doubling_vf(x, t):
+            return jnp.log(2.0) * x
 
-        def linear_vf(x, t):
-            return A @ x
+        # Sample from N(0, 1)
+        seed = jax.random.PRNGKey(42)
+        samples = jax.random.normal(seed, (100, 2))
 
-        x0 = jnp.ones(5)
+        # Expected log prob for transformed samples at N(0, 2)
+        expected_log_prob = jnp.sum(norm.logpdf(samples, scale=2.0), axis=1)
 
-        x_final, log_det_jacobian = solve_augmented_ode(
-            linear_vf,
-            x0,
+        # Compute via augmented ODE using batch solver
+        rng_key = jax.random.PRNGKey(0)
+        x_final_batch, log_det_batch = batch_solve_augmented_ode(
+            doubling_vf,
+            samples,
             solver,
             rtol=1e-5,
             atol=1e-5,
+            rng=rng_key,
+            n_epsilon=30,
         )
 
+        # Compute log prob: log_p(z_0) - log_det_jacobian
+        log_p_z0 = jnp.sum(norm.logpdf(x_final_batch), axis=1)
+        log_probs = log_p_z0 - log_det_batch
+
+        # Compare with expected (moderate tolerance for stochastic trace)
         np.testing.assert_allclose(
-            log_det_jacobian,
-            expected_log_det,
+            log_probs,
+            expected_log_prob,
             rtol=0.1,
-            atol=0.01,
+            atol=0.5,
         )
 
     def test_augmented_state_shape(self, solver):
@@ -313,7 +323,11 @@ class TestBatchSolveAugmentedODE:
     """Test batch augmented ODE solving with vmap."""
 
     def test_batch_augmented_vs_loop(self, solver):
-        """Test batch_solve_augmented gives same results as loop."""
+        """Test batch_solve_augmented gives same results as loop.
+
+        Note: Uses same RNG and n_epsilon for both batch and loop to
+        ensure comparable stochastic trace estimates.
+        """
         def linear_vf(x, t):
             A = jnp.array([[2.0, 0.0], [0.0, 1.0]])
             return A @ x
@@ -324,6 +338,10 @@ class TestBatchSolveAugmentedODE:
 
         x0_batch = jax.random.normal(seed, (batch_size, state_dim))
 
+        # Use consistent RNG across batch and loop
+        rng_key = jax.random.PRNGKey(42)
+        n_eps = 10
+
         # Batch augmented solve
         x_final_batch, log_det_batch = batch_solve_augmented_ode(
             linear_vf,
@@ -331,18 +349,23 @@ class TestBatchSolveAugmentedODE:
             solver,
             rtol=1e-5,
             atol=1e-5,
+            rng=rng_key,
+            n_epsilon=n_eps,
         )
 
-        # Loop augmented solve for comparison
+        # Loop augmented solve for comparison with split RNGs
+        rngs_split = jax.random.split(rng_key, batch_size)
         x_final_loop = []
         log_det_loop = []
-        for x0 in x0_batch:
+        for x0, rng_i in zip(x0_batch, rngs_split):
             x_f, ld = solve_augmented_ode(
                 linear_vf,
                 x0,
                 solver,
                 rtol=1e-5,
                 atol=1e-5,
+                rng=rng_i,
+                n_epsilon=n_eps,
             )
             x_final_loop.append(x_f)
             log_det_loop.append(ld)
