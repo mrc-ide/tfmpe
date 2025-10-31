@@ -1,8 +1,4 @@
 """Unit tests for ODE solving helpers.
-
-Tests for tasks 4 and 5:
-- Task 4: Doubling continuous flow and forward/backward ODE tests
-- Task 5: Augmented ODE trace computation and batch operations
 """
 
 import numpy as np
@@ -19,7 +15,7 @@ from tfmpe.estimators.ode import (
 
 
 # ============================================================================
-# Task 4 Tests: Doubling Flow and Forward/Backward ODE
+# Doubling Flow and Forward/Backward ODE
 # ============================================================================
 
 
@@ -134,7 +130,7 @@ class TestSolveBackwardODE:
 
 
 # ============================================================================
-# Task 5 Tests: Augmented ODE and Batch Operations
+# Augmented ODE and Batch Operations
 # ============================================================================
 
 
