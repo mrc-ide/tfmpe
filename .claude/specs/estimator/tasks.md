@@ -31,7 +31,7 @@ All tasks follow structure.md conventions:
 
 ### Phase 1: ODE Infrastructure
 
-- [ ] 1. Create ODE solver module structure and Diffrax solver wrapper
+- [x] 1. Create ODE solver module structure and Diffrax solver wrapper
   - Files: `tfmpe/estimators/ode.py`, `tfmpe/estimators/__init__.py`
   - Implement `solve_forward_ode()` using Diffrax Dopri5 solver
     - Parameters: vf_fn (callable), x0 (Array), solver, time_span, rtol, atol
@@ -44,7 +44,7 @@ All tasks follow structure.md conventions:
   - _Leverage: sfmpe_legacy/sfmpe/structured_cnf.py for algorithm structure (adapted for Diffrax)_
   - _Requirements: 1.1_
 
-- [ ] 2. Implement backward ODE and augmented ODE solvers
+- [x] 2. Implement backward ODE and augmented ODE solvers
   - Files: `tfmpe/estimators/ode.py`
   - Implement `solve_backward_ode()` for log probability computation
     - Reverse time direction via negated vf_fn
@@ -60,7 +60,7 @@ All tasks follow structure.md conventions:
   - _Leverage: FFJORD trace estimation from sfmpe_legacy/sfmpe/structured_cnf.py_
   - _Requirements: 1.1, 1.2_
 
-- [ ] 3. Implement batched ODE solver with vmap
+- [x] 3. Implement batched ODE solver with vmap
   - Files: `tfmpe/estimators/ode.py`
   - Implement `batch_solve_forward_ode()` for efficient batch sampling
     - Signature: vf_fn, x0_batch (Array shape (batch, *state_shape)), solver, time_span, rtol, atol
@@ -73,7 +73,7 @@ All tasks follow structure.md conventions:
   - Purpose: Enable efficient batch operations for sampling/log prob
   - _Requirements: 1.1, 1.2_
 
-- [ ] 4. Create doubling continuous flow unit test
+- [x] 4. Create doubling continuous flow unit test
   - Files: `test/estimators/test_ode.py`
   - Test `solve_forward_ode()` with doubling flow vector field
     - Vector field: f(θ) = log(2) · θ (exponential scaling)
@@ -87,7 +87,7 @@ All tasks follow structure.md conventions:
   - _Leverage: test patterns from sfmpe_legacy/test/test_cnf_density.py_
   - _Requirements: 1.1, 1.2, 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 5. Create unit tests for augmented ODE and batch operations
+- [x] 5. Create unit tests for augmented ODE and batch operations
   - Files: `test/estimators/test_ode.py` (continue from 4)
   - Test `solve_augmented_ode()` trace computation
     - Compare trace estimate vs analytical jacobian for simple linear vf
