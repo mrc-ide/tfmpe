@@ -73,7 +73,7 @@ All tasks follow structure.md conventions:
   - Purpose: Enable efficient batch operations for sampling/log prob
   - _Requirements: 1.1, 1.2_
 
-- [ ] 4. Create doubling continuous flow unit test
+- [x] 4. Create doubling continuous flow unit test
   - Files: `test/estimators/test_ode.py`
   - Test `solve_forward_ode()` with doubling flow vector field
     - Vector field: f(θ) = log(2) · θ (exponential scaling)
@@ -87,7 +87,7 @@ All tasks follow structure.md conventions:
   - _Leverage: test patterns from sfmpe_legacy/test/test_cnf_density.py_
   - _Requirements: 1.1, 1.2, 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 5. Create unit tests for augmented ODE and batch operations
+- [x] 5. Create unit tests for augmented ODE and batch operations
   - Files: `test/estimators/test_ode.py` (continue from 4)
   - Test `solve_augmented_ode()` trace computation
     - Compare trace estimate vs analytical jacobian for simple linear vf
