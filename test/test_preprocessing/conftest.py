@@ -3,8 +3,7 @@
 import jax.numpy as jnp
 import pytest
 
-from tfmpe.preprocessing.utils import Independence
-
+from tfmpe.preprocessing.utils import Labeller
 
 @pytest.fixture
 def simple_pytree():
@@ -15,12 +14,7 @@ def simple_pytree():
         'obs': jnp.array([[0.1], [0.2], [0.3]])  # (3, 1)
     }
 
-
 @pytest.fixture
-def simple_independence():
-    """Independence spec for simple hierarchical structure."""
-    return Independence(
-        local=['obs', 'theta'],
-        cross=[('mu', 'obs'), ('obs', 'mu')],
-        cross_local=[('theta', 'obs', None)]
-    )
+def simple_labeller():
+    """Labeller for simple hierarchical structure."""
+    return Labeller(label_map={'mu': 0, 'theta': 1, 'obs': 2})

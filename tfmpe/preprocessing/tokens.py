@@ -5,26 +5,34 @@ masking, functional inputs, and metadata into a single coherent interface.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Callable,
+)
+from math import prod
 
 import jax.numpy as jnp
+from jax.tree_util import register_pytree_node_class
 from jaxtyping import Array
 
-from .flatten import flatten_pytree, update_flat_array
-from .utils import Independence, SliceInfo
+from .flatten import flatten_pytree
+from .utils import Labeller
 from .functional_inputs import flatten_functional_inputs
-from .masks import build_cross_attention_mask, build_self_attention_mask
-from .reconstruct import decode_pytree, decode_pytree_keys
-from .token_view import TokenView
+from .reconstruct import decode_pytree
 
-
+@register_pytree_node_class
 @dataclass
 class Tokens:
     """
     Unified container for structured token data.
 
     Stores all parameters and observations in a single flattened array,
-    enabling dynamic slicing into subsets via key selection.
+    with metadata for efficient decoding to structured format.
 
     Attributes
     ----------
@@ -33,34 +41,34 @@ class Tokens:
         max_batch_size)
     labels : Array
         Integer labels per token, shape (*sample_shape, n_total_tokens)
-    self_attention_mask : Array
-        Self-attention mask for all tokens, shape
-        (n_total_tokens, n_total_tokens)
+    partition_idx: int
+        Static index which separates conditional and target data
     padding_mask : Optional[Array]
         Padding mask, shape (*sample_shape, n_total_tokens)
     functional_inputs : Optional[Array]
         Functional inputs for tokens, shape (*sample_shape,
         n_total_tokens, max_batch_size)
-    slices : Dict[str, SliceInfo]
-        Metadata per key mapping name to SliceInfo
-    label_map : Dict[str, int]
-        Mapping from key names to label integers
-    key_order : List[str]
-        Ordered list of keys (matches slice order)
-    independence : Independence
-        Independence specification controlling attention patterns between
-        tokens. See Independence class for details.
     """
 
     data: Array
     labels: Array
-    self_attention_mask: Array
+    position: Array
+    condition: Array
+    partition_idx: int
     padding_mask: Optional[Array]
     functional_inputs: Optional[Array]
-    slices: Dict[str, SliceInfo]
-    label_map: Dict[str, int]
-    key_order: List[str]
-    independence: Optional[Independence] = None
+
+    @property
+    def sample_ndims(self) -> int:
+        """
+        Get number of sample dimensions from data array.
+
+        Returns
+        -------
+        int
+            Number of leading sample dimensions
+        """
+        return len(self.data.shape) - 2  # Remove event and batch
 
     @property
     def sample_shape(self) -> Tuple[int, ...]:
@@ -72,16 +80,16 @@ class Tokens:
         Tuple[int, ...]
             Shape of sample dimensions
         """
-        sample_ndims = len(self.data.shape) - 2  # Remove event and batch
-        return self.data.shape[:sample_ndims]
+        return self.data.shape[:self.sample_ndims]
 
     @classmethod
     def from_pytree(
         cls,
         data: Dict[str, Array],
-        independence: Independence,
+        condition: List[str],
+        labeller: Optional[Labeller] = None,
         functional_inputs: Optional[Dict[str, Array]] = None,
-        sample_ndims: int = 0,
+        sample_ndims: int = 1,
         batch_ndims: Optional[Dict[str, int]] = None,
     ) -> 'Tokens':
         """
@@ -91,16 +99,18 @@ class Tokens:
 
         Parameters
         ----------
-        data : Dict[str, Array]
-            Dictionary of parameter arrays. Each array should have shape
+        data: Dict[str, Array]
+            Dictionary of model variable samples. Each array should have shape
             (*sample_dims, *event_dims, *batch_dims).
-        independence : Independence
-            Independence specification controlling attention patterns between
-            tokens. See Independence class for details.
+        condition: List[str]
+            List of keys which correspond to conditioning variables
+        labeller : Optional[Labeller], optional
+            Labeller instance for generating consistent labels across tokens.
+            If None, creates a default labeller with sequential indices.
         functional_inputs : Optional[Dict[str, Array]], optional
             Dictionary of functional input arrays matching data structure
         sample_ndims : int, optional
-            Number of leading sample dimensions. Default is 0.
+            Number of leading sample dimensions. Default is 1.
         batch_ndims : Optional[Dict[str, int]], optional
             Number of trailing batch dimensions for each key.
             If None, defaults to 1 for all keys.
@@ -108,55 +118,128 @@ class Tokens:
         Returns
         -------
         Tokens
-            Unified token object with all data and metadata
+            Token object
+        """
+        tokens, _ = cls._from_pytree_impl(
+            data, condition, labeller, functional_inputs,
+            sample_ndims, batch_ndims
+        )
+        return tokens
+
+    @classmethod
+    def from_pytree_with_decoder(
+        cls,
+        data: Dict[str, Array],
+        condition: List[str],
+        labeller: Optional[Labeller] = None,
+        functional_inputs: Optional[Dict[str, Array]] = None,
+        sample_ndims: int = 1,
+        batch_ndims: Optional[Dict[str, int]] = None,
+    ) -> Tuple['Tokens', Callable[['Tokens'], Dict[str, Array]]]:
+        """
+        Create Tokens from structured PyTree with a decoder function.
+
+        All keys in data are flattened into a single token array.
+
+        Parameters
+        ----------
+        data: Dict[str, Array]
+            Dictionary of model variable samples. Each array should have shape
+            (*sample_dims, *event_dims, *batch_dims).
+        condition: List[str]
+            List of keys which correspond to conditioning variables
+        labeller : Optional[Labeller], optional
+            Labeller instance for generating consistent labels across tokens.
+            If None, creates a default labeller with sequential indices.
+        functional_inputs : Optional[Dict[str, Array]], optional
+            Dictionary of functional input arrays matching data structure
+        sample_ndims : int, optional
+            Number of leading sample dimensions. Default is 1.
+        batch_ndims : Optional[Dict[str, int]], optional
+            Number of trailing batch dimensions for each key.
+            If None, defaults to 1 for all keys.
+
+        Returns
+        -------
+        Tuple[Tokens, Callable[[Tokens], Dict[str, Array]]]
+            Token object and decoding function
+        """
+        return cls._from_pytree_impl(
+            data, condition, labeller, functional_inputs,
+            sample_ndims, batch_ndims
+        )
+
+    @classmethod
+    def _from_pytree_impl(
+        cls,
+        data: Dict[str, Array],
+        condition: List[str],
+        labeller: Optional[Labeller],
+        functional_inputs: Optional[Dict[str, Array]],
+        sample_ndims: int,
+        batch_ndims: Optional[Dict[str, int]],
+    ) -> Tuple['Tokens', Callable[['Tokens'], Dict[str, Array]]]:
+        """
+        Internal implementation for from_pytree methods.
+
+        Flattens the input PyTree into a token array, generates labels
+        and position indices, and creates a decoder closure that can
+        reconstruct the original structure.
+
+        Parameters
+        ----------
+        data : Dict[str, Array]
+            Dictionary of parameter arrays to flatten
+        condition : List[str]
+            Keys corresponding to conditioning variables (placed first)
+        labeller : Optional[Labeller]
+            Label generator, or None to create default sequential labels
+        functional_inputs : Optional[Dict[str, Array]]
+            Optional functional inputs to flatten alongside data
+        sample_ndims : int
+            Number of leading sample dimensions
+        batch_ndims : Optional[Dict[str, int]]
+            Batch dimensions per key, or None to default to 1
+
+        Returns
+        -------
+        Tuple[Tokens, Callable[[Tokens], Dict[str, Array]]]
+            The constructed Tokens object and a decoder function that
+            reconstructs the original PyTree structure from token data
         """
         # Default batch_ndims to 1 for all keys
         if batch_ndims is None:
             batch_ndims = {key: 1 for key in data.keys()}
 
+        # Create default labeller if not provided
+        if labeller is None:
+            labeller = Labeller.for_keys(list(data.keys()))
+
         # Flatten the PyTree
+        # Sort data such that conditioning variables come first
+        key_order = sorted(data.keys(), key=lambda k: k not in condition)
+        data = { k: data[k] for k in key_order }
         flat_data, slices = flatten_pytree(
             data,
             sample_ndims=sample_ndims,
             batch_ndims=batch_ndims
         )
-
-        # Create key order from slices (sorted by offset)
-        key_order = sorted(slices.keys(), key=lambda k: slices[k].offset)
-
-        # Create label map and labels array
-        label_map = {key: i for i, key in enumerate(key_order)}
+        partition_idx = next(
+            s.offset
+            for k, s in slices.items()
+            if k not in condition
+        )
 
         # Build labels array
         total_tokens = flat_data.shape[sample_ndims]
         sample_shape = flat_data.shape[:sample_ndims]
 
-        # Create labels for each token
-        labels_list = []
-        for key in key_order:
-            event_shape = slices[key].event_shape
-            n_tokens = 1
-            for dim in event_shape:
-                n_tokens *= dim
-            key_labels = jnp.full(n_tokens, label_map[key], dtype=jnp.int32)
-            labels_list.append(key_labels)
-
-        labels_1d = jnp.concatenate(labels_list)
-
-        # Broadcast to sample shape if needed
-        if sample_ndims > 0:
-            # Expand dims and broadcast
-            for _ in range(sample_ndims):
-                labels_1d = jnp.expand_dims(labels_1d, 0)
-            broadcast_shape = sample_shape + (total_tokens,)
-            labels = jnp.broadcast_to(labels_1d, broadcast_shape)
-        else:
-            labels = labels_1d
-
-        # Build self-attention mask
-        self_attention_mask = build_self_attention_mask(
-            slices,
-            independence
+        # Generate labels using Labeller
+        labels_1d = labeller.label(slices)
+        broadcast_shape = sample_shape + (total_tokens,)
+        labels = jnp.broadcast_to(
+            labels_1d.reshape((1,) * sample_ndims + (total_tokens,)),
+            broadcast_shape
         )
 
         # Flatten functional inputs if provided
@@ -168,205 +251,105 @@ class Tokens:
                 sample_ndims=sample_ndims
             )
 
-        return cls(
+        position = jnp.concatenate([
+            jnp.arange(prod(s.event_shape))
+            for s in slices.values()
+        ])
+        position = jnp.broadcast_to(
+            position.reshape((1,) * sample_ndims + (total_tokens,)),
+            broadcast_shape
+        )
+
+        condition_values = jnp.concatenate([
+            jnp.full(
+                (prod(v.event_shape),),
+                int(k in condition),
+                dtype=float
+            )
+            for k, v in slices.items()
+        ])
+        condition_values = jnp.broadcast_to(
+            condition_values.reshape((1,) * sample_ndims + (total_tokens,)),
+            broadcast_shape
+        )
+
+        tokens = cls(
             data=flat_data,
             labels=labels,
-            self_attention_mask=self_attention_mask,
+            position=position,
+            condition=condition_values,
             padding_mask=None,
             functional_inputs=func_inputs_flat,
-            slices=slices,
-            label_map=label_map,
-            key_order=key_order,
-            independence=independence
+            partition_idx=partition_idx
         )
 
-    def decode(self, flat_array: Optional[Array] = None) -> Dict[str, Array]:
+        def decoder(tokens: 'Tokens') -> Dict[str, Array]:
+            return decode_pytree(
+                tokens.data,
+                slices,
+                tokens.sample_shape,
+                is_subset=False
+            )
+
+        return tokens, decoder
+
+    def tree_flatten(self) -> Tuple[Tuple, Dict[str, Any]]:
         """
-        Reconstruct PyTree from flat array.
-
-        If flat_array is None, uses self.data.
-
-        Parameters
-        ----------
-        flat_array : Optional[Array], optional
-            Flat array to decode. If None, uses self.data.
+        Flatten Tokens for JAX PyTree operations.
 
         Returns
         -------
-        Dict[str, Array]
-            Dictionary of reconstructed arrays
+        Tuple[Tuple, Dict[str, Any]]
+            (children, aux_data) where children are arrays with sample
+            dimension that get transformed by tree.map, and aux_data
+            contains static metadata
         """
-        if flat_array is None:
-            flat_array = self.data
-
-        return decode_pytree(
-            flat_array,
-            self.slices,
-            self.sample_shape,
-            is_subset=False
+        children = (
+            self.data,
+            self.labels,
+            self.position,
+            self.condition,
+            self.padding_mask,
+            self.functional_inputs,
         )
+        aux_data = {"partition_idx": self.partition_idx}
+        return (children, aux_data)
 
-    def decode_keys(
-        self,
-        flat_array: Array,
-        keys: List[str]
-    ) -> Dict[str, Array]:
+    @classmethod
+    def tree_unflatten(
+        cls,
+        aux_data: Dict[str, Any],
+        children: Tuple
+    ) -> 'Tokens':
         """
-        Reconstruct only specified keys from flat array.
-
-        Useful when target_keys is a subset of all keys.
+        Unflatten Tokens from JAX PyTree operations.
 
         Parameters
         ----------
-        flat_array : Array
-            Flat array to decode
-        keys : List[str]
-            List of keys to reconstruct
-
-        Returns
-        -------
-        Dict[str, Array]
-            Dictionary containing only the specified keys
-        """
-        return decode_pytree_keys(
-            flat_array,
-            self.slices,
-            self.sample_shape,
-            keys
-        )
-
-    def select_tokens(self, keys: List[str]) -> TokenView:
-        """
-        Create view selecting specified keys.
-
-        Returns a TokenView that provides slices, labels, and masks
-        for only the selected keys without copying data.
-
-        Parameters
-        ----------
-        keys : List[str]
-            Keys to include in the view
-
-        Returns
-        -------
-        TokenView
-            View into this Tokens object with only selected keys
-
-        Raises
-        ------
-        KeyError
-            If any key in keys is not present in this Tokens object
-        """
-        return TokenView(parent=self, selected_keys=keys)
-
-    def cross_attention_mask(
-        self,
-        query_view: TokenView,
-        key_view: TokenView
-    ) -> Array:
-        """
-        Generate cross-attention mask between query and key tokens.
-
-        Uses independence specification to zero out prohibited
-        connections.
-
-        Parameters
-        ----------
-        query_view : TokenView
-            TokenView for query tokens
-        key_view : TokenView
-            TokenView for key/value tokens
-
-        Returns
-        -------
-        Array
-            Cross-attention mask with shape
-            (n_query_tokens, n_key_tokens)
-        """
-        # Use re-indexed slices from TokenViews
-        independence = self.independence or Independence()
-        return build_cross_attention_mask(
-            query_view.slices,
-            key_view.slices,
-            independence
-        )
-
-    def with_values(self, **key_values: Array) -> 'Tokens':
-        """
-        Create new Tokens with specified keys replaced by new values.
-
-        The new values are re-flattened and inserted at the correct
-        offsets in the unified array.
-
-        Parameters
-        ----------
-        **key_values : Array
-            Keyword arguments mapping key names to new value arrays
+        aux_data : Dict[str, Any]
+            Static metadata
+        children : Tuple
+            Arrays with sample dimension
 
         Returns
         -------
         Tokens
-            New Tokens object with updated values
-
-        Raises
-        ------
-        KeyError
-            If any key is not present in this Tokens object
-        ValueError
-            If any new value has incompatible shape
-
-        Examples
-        --------
-        >>> new_tokens = tokens.with_values(mu=new_mu_samples)
-        >>> new_tokens = tokens.with_values(
-        ...     mu=new_mu,
-        ...     sigma=new_sigma
-        ... )
+            Reconstructed Tokens object
         """
-        # Validate all keys exist
-        for key in key_values:
-            if key not in self.key_order:
-                raise KeyError(
-                    f"Key '{key}' not found. "
-                    f"Available keys: {self.key_order}"
-                )
-
-        # Start with current data
-        new_data = self.data
-
-        # Update each key
-        for key, new_value in key_values.items():
-            # Validate shape matches expected
-            slice_info = self.slices[key]
-            expected_shape = (
-                self.sample_shape +
-                slice_info.event_shape +
-                slice_info.batch_shape
-            )
-
-            if new_value.shape != expected_shape:
-                raise ValueError(
-                    f"Shape mismatch for key '{key}': "
-                    f"expected {expected_shape}, got {new_value.shape}"
-                )
-
-            # Update the flat array
-            new_data = update_flat_array(
-                new_data,
-                self.slices,
-                key,
-                new_value
-            )
-
-        # Create new Tokens with updated data
-        return Tokens(
-            data=new_data,
-            labels=self.labels,
-            self_attention_mask=self.self_attention_mask,
-            padding_mask=self.padding_mask,
-            functional_inputs=self.functional_inputs,
-            slices=self.slices,
-            label_map=self.label_map,
-            key_order=self.key_order,
-            independence=self.independence
+        (
+            data,
+            labels,
+            position,
+            condition,
+            padding_mask,
+            functional_inputs,
+        ) = children
+        return cls(
+            data=data,
+            labels=labels,
+            position=position,
+            condition=condition,
+            padding_mask=padding_mask,
+            functional_inputs=functional_inputs,
+            partition_idx=aux_data["partition_idx"]
         )
