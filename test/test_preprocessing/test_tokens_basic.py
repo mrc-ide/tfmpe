@@ -4,68 +4,8 @@ Tests verify creation of Tokens from PyTree and decoding back to PyTree.
 """
 
 import jax.numpy as jnp
-import pytest
+from tfmpe.preprocessing import Tokens, Labeller
 
-from tfmpe.preprocessing import Tokens
-from tfmpe.preprocessing.utils import Independence
-
-
-def test_independence_default_instantiation():
-    """Test Independence can be created without specifying fields."""
-    indep = Independence()
-    assert indep.local == []
-    assert indep.cross == []
-    assert indep.cross_local == []
-
-
-def test_independence_partial_instantiation():
-    """Test Independence with only some fields specified."""
-    # Only local
-    indep1 = Independence(local=['obs'])
-    assert indep1.local == ['obs']
-    assert indep1.cross == []
-    assert indep1.cross_local == []
-
-    # Only cross
-    indep2 = Independence(cross=[('a', 'b')])
-    assert indep2.local == []
-    assert indep2.cross == [('a', 'b')]
-    assert indep2.cross_local == []
-
-    # Only cross_local
-    indep3 = Independence(cross_local=[('x', 'y', None)])
-    assert indep3.local == []
-    assert indep3.cross == []
-    assert indep3.cross_local == [('x', 'y', None)]
-
-
-def test_independence_truthiness_empty():
-    """Test empty Independence evaluates to False."""
-    indep = Independence()
-    assert not indep
-    assert bool(indep) is False
-
-
-def test_independence_truthiness_nonempty():
-    """Test Independence with any rules evaluates to True."""
-    # With local rules
-    assert bool(Independence(local=['obs']))
-
-    # With cross rules
-    assert bool(Independence(cross=[('a', 'b')]))
-
-    # With cross_local rules
-    assert bool(Independence(cross_local=[('x', 'y', None)]))
-
-    # With multiple rules
-    assert bool(Independence(
-        local=['obs'],
-        cross=[('a', 'b')],
-        cross_local=[('x', 'y', None)]
-    ))
-
-
-@pytest.fixture
 def three_level_pytree():
     """3-level hierarchical structure."""
     return {
@@ -78,27 +18,11 @@ def three_level_pytree():
     }
 
 
-@pytest.fixture
-def three_level_independence():
-    """Independence spec for 3-level structure."""
-    return Independence(
-        local=['local_theta', 'obs'],
-        cross=[
-            ('global_mu', 'obs'),
-            ('obs', 'global_mu')
-        ],
-        cross_local=[
-            ('group_mu', 'local_theta', None),
-            ('local_theta', 'obs', None)
-        ]
-    )
-
-
-def test_from_pytree_data_shape(simple_pytree, simple_independence):
+def test_from_pytree_data_shape(simple_pytree):
     """Test that data array has correct shape."""
     tokens = Tokens.from_pytree(
         simple_pytree,
-        independence=simple_independence,
+        condition=['obs'],
         sample_ndims=0,
         batch_ndims={'mu': 1, 'theta': 1, 'obs': 1}
     )
@@ -108,11 +32,11 @@ def test_from_pytree_data_shape(simple_pytree, simple_independence):
     assert tokens.data.shape == (7, 1)
 
 
-def test_from_pytree_labels_shape(simple_pytree, simple_independence):
+def test_from_pytree_labels_shape(simple_pytree):
     """Test that labels have correct shape and values."""
     tokens = Tokens.from_pytree(
         simple_pytree,
-        independence=simple_independence,
+        condition=['obs'],
         sample_ndims=0,
         batch_ndims={'mu': 1, 'theta': 1, 'obs': 1}
     )
@@ -121,9 +45,10 @@ def test_from_pytree_labels_shape(simple_pytree, simple_independence):
     assert tokens.labels.shape == (7,)
 
     # Check that each block has consistent labels
-    mu_label = tokens.labels[0]
-    theta_labels = tokens.labels[1:4]
-    obs_labels = tokens.labels[4:7]
+    # condition is moved to first
+    obs_labels = tokens.labels[1:3]
+    mu_label = tokens.labels[3]
+    theta_labels = tokens.labels[4:8]
 
     # All tokens from same key should have same label
     assert jnp.all(theta_labels == theta_labels[0])
@@ -144,7 +69,7 @@ def test_from_pytree_labels_with_sample_dims():
 
     tokens = Tokens.from_pytree(
         pytree,
-        independence=Independence(),
+        condition=[],
         sample_ndims=1,
         batch_ndims={'a': 1, 'b': 1}
     )
@@ -163,33 +88,16 @@ def test_from_pytree_labels_with_sample_dims():
     assert jnp.all(b_labels == b_labels[0])
     assert a_labels[0] != b_labels[0]
 
-
-def test_from_pytree_mask_shapes(simple_pytree, simple_independence):
-    """Test that masks have correct shapes."""
-    tokens = Tokens.from_pytree(
+def test_decode_round_trip(simple_pytree):
+    """Test that decoder recovers original PyTree."""
+    tokens, decoder = Tokens.from_pytree_with_decoder(
         simple_pytree,
-        independence=simple_independence,
+        condition=['obs'],
         sample_ndims=0,
-        batch_ndims={'mu': 1, 'theta': 1, 'obs': 1}
+        batch_ndims={'mu': 1, 'theta': 1, 'obs': 1},
     )
 
-    # Self-attention mask: (7, 7)
-    assert tokens.self_attention_mask.shape == (7, 7)
-
-    # Padding mask: None for basic case
-    assert tokens.padding_mask is None
-
-
-def test_decode_round_trip(simple_pytree, simple_independence):
-    """Test that decode() recovers original PyTree."""
-    tokens = Tokens.from_pytree(
-        simple_pytree,
-        independence=simple_independence,
-        sample_ndims=0,
-        batch_ndims={'mu': 1, 'theta': 1, 'obs': 1}
-    )
-
-    reconstructed = tokens.decode()
+    reconstructed = decoder(tokens)
 
     # Check keys match
     assert set(reconstructed.keys()) == set(simple_pytree.keys())
@@ -203,77 +111,37 @@ def test_decode_round_trip(simple_pytree, simple_independence):
         assert jnp.allclose(reconstructed[key], simple_pytree[key])
 
 
-def test_decode_after_modification(simple_pytree, simple_independence):
-    """Test decode() after modifying different keys."""
-    tokens = Tokens.from_pytree(
+def test_decode_after_modification(simple_pytree):
+    """Test decoder after modifying different keys."""
+    labeller = Labeller.for_keys(['mu', 'theta', 'obs'])
+    _, decoder = Tokens.from_pytree_with_decoder(
         simple_pytree,
-        independence=simple_independence,
+        condition=['obs'],
         sample_ndims=0,
-        batch_ndims={'mu': 1, 'theta': 1, 'obs': 1}
+        labeller=labeller,
     )
 
-    # Modify different keys with different coefficients
-    modified_data = tokens.data.copy()
-    # mu: offset 0, size 1 -> multiply by 10
-    modified_data = modified_data.at[0:1, :].set(
-        modified_data[0:1, :] * 10.0
-    )
-    # theta: offset 1, size 3 -> multiply by 2
-    modified_data = modified_data.at[1:4, :].set(
-        modified_data[1:4, :] * 2.0
-    )
-    # obs: offset 4, size 3 -> multiply by 0.5
-    modified_data = modified_data.at[4:7, :].set(
-        modified_data[4:7, :] * 0.5
+    new_pytree = {
+        'mu': simple_pytree['mu'] * 10,
+        'theta': simple_pytree['theta'] * 2.0,
+        'obs': simple_pytree['obs'] * 0.5,
+    }
+
+    modified_tokens = Tokens.from_pytree(
+        new_pytree,
+        condition=['obs'],
+        sample_ndims=0,
+        labeller=labeller,
     )
 
-    reconstructed = tokens.decode(modified_data)
+    reconstructed = decoder(modified_tokens)
 
     # Check that values have correct coefficients applied
     assert jnp.allclose(reconstructed['mu'], simple_pytree['mu'] * 10.0)
     assert jnp.allclose(reconstructed['theta'], simple_pytree['theta'] * 2.0)
     assert jnp.allclose(reconstructed['obs'], simple_pytree['obs'] * 0.5)
 
-
-def test_decode_keys_subset(simple_pytree, simple_independence):
-    """Test decode_keys() with subset of keys."""
-    tokens = Tokens.from_pytree(
-        simple_pytree,
-        independence=simple_independence,
-        sample_ndims=0,
-        batch_ndims={'mu': 1, 'theta': 1, 'obs': 1}
-    )
-
-    # Decode only mu and obs
-    subset = tokens.decode_keys(tokens.data, ['mu', 'obs'])
-
-    # Check only requested keys present
-    assert set(subset.keys()) == {'mu', 'obs'}
-
-    # Check values match original
-    assert jnp.allclose(subset['mu'], simple_pytree['mu'])
-    assert jnp.allclose(subset['obs'], simple_pytree['obs'])
-
-
-def test_decode_keys_single_key(simple_pytree, simple_independence):
-    """Test decode_keys() with single key."""
-    tokens = Tokens.from_pytree(
-        simple_pytree,
-        independence=simple_independence,
-        sample_ndims=0,
-        batch_ndims={'mu': 1, 'theta': 1, 'obs': 1}
-    )
-
-    subset = tokens.decode_keys(tokens.data, ['theta'])
-
-    assert set(subset.keys()) == {'theta'}
-    assert jnp.allclose(subset['theta'], simple_pytree['theta'])
-
-
-def test_from_pytree_with_functional_inputs(
-    simple_pytree,
-    simple_independence
-):
+def test_from_pytree_with_functional_inputs(simple_pytree):
     """Test from_pytree with functional inputs."""
     # Create functional inputs matching pytree structure
     functional_inputs = {
@@ -284,7 +152,7 @@ def test_from_pytree_with_functional_inputs(
 
     tokens = Tokens.from_pytree(
         simple_pytree,
-        independence=simple_independence,
+        condition=['obs'],
         functional_inputs=functional_inputs,
         sample_ndims=0,
         batch_ndims={'mu': 1, 'theta': 1, 'obs': 1}
@@ -311,7 +179,7 @@ def test_from_pytree_functional_inputs_with_sample_dims():
 
     tokens = Tokens.from_pytree(
         pytree,
-        independence=Independence(),
+        condition=[],
         functional_inputs=functional_inputs,
         sample_ndims=1,
         batch_ndims={'a': 1, 'b': 1}
@@ -321,46 +189,3 @@ def test_from_pytree_functional_inputs_with_sample_dims():
     assert tokens.functional_inputs is not None
     assert tokens.functional_inputs.shape == (2, 3, 1)
     assert tokens.functional_inputs.shape == tokens.data.shape
-
-
-def test_label_map_consistent(simple_pytree, simple_independence):
-    """Test that label_map is consistent with labels array."""
-    tokens = Tokens.from_pytree(
-        simple_pytree,
-        independence=simple_independence,
-        sample_ndims=0,
-        batch_ndims={'mu': 1, 'theta': 1, 'obs': 1}
-    )
-
-    # Check all keys have labels
-    assert set(tokens.label_map.keys()) == set(simple_pytree.keys())
-
-    # Expected labels array
-    mu_id = tokens.label_map['mu']
-    theta_id = tokens.label_map['theta']
-    obs_id = tokens.label_map['obs']
-
-    expected_labels = jnp.array([
-        mu_id,  # mu (1 token)
-        theta_id, theta_id, theta_id,  # theta (3 tokens)
-        obs_id, obs_id, obs_id  # obs (3 tokens)
-    ])
-
-    assert jnp.array_equal(tokens.labels, expected_labels)
-
-
-def test_key_order_matches_slices(simple_pytree, simple_independence):
-    """Test that key_order matches the order of slices."""
-    tokens = Tokens.from_pytree(
-        simple_pytree,
-        independence=simple_independence,
-        sample_ndims=0,
-        batch_ndims={'mu': 1, 'theta': 1, 'obs': 1}
-    )
-
-    # Check all keys present
-    assert set(tokens.key_order) == set(simple_pytree.keys())
-
-    # Check offsets are in order
-    offsets = [tokens.slices[k].offset for k in tokens.key_order]
-    assert offsets == sorted(offsets)
