@@ -1,10 +1,10 @@
 """Pipelines for processing datasets for use with the estimators."""
-from tfmpe.preprocessing.combine import combine_tokens
-from tfmpe.preprocessing.tokens import Tokens
-from tfmpe.preprocessing.utils import Independence
+from .combine import combine_tokens
+from .tokens import Tokens
+from .utils import Labeller
 
 __all__ = [
-    "Independence",
+    "Labeller",
     "Tokens",
     "combine_tokens",
 ]
