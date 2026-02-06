@@ -2,7 +2,6 @@
 
 from typing import Callable, Optional
 
-import jax.numpy as jnp
 from jaxtyping import Array
 from flax import nnx
 

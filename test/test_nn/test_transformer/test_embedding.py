@@ -3,7 +3,6 @@
 import pytest
 import jax
 import jax.numpy as jnp
-from jax import random
 from flax import nnx
 
 from tfmpe.nn.transformer.embedding import (
