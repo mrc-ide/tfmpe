@@ -128,7 +128,6 @@ class MLP(nnx.Module):
             Output array of shape (..., latent_dim)
         """
 
-        @nnx.split_rngs(splits=self.n_layers)
         @nnx.scan(in_axes=(nnx.Carry, 0), out_axes=nnx.Carry)
         def forward(
             x: Array,
