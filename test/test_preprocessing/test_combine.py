@@ -362,14 +362,12 @@ def test_combine_padding_mask_set():
         pytree1,
         condition=['a'],
         sample_ndims=1,
-        batch_ndims={'a': 1}
     )
 
     tokens2 = Tokens.from_pytree(
         pytree2,
         condition=['a'],
         sample_ndims=1,
-        batch_ndims={'a': 1}
     )
 
     combined = combine_tokens(tokens1, tokens2)

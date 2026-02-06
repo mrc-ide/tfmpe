@@ -41,6 +41,12 @@ class Tokens:
         max_batch_size)
     labels : Array
         Integer labels per token, shape (*sample_shape, n_total_tokens)
+    position : Array
+        Position index per token within its key group,
+        shape (*sample_shape, n_total_tokens)
+    condition : Array
+        Conditioning indicator per token (1.0 for conditioning,
+        0.0 for target), shape (*sample_shape, n_total_tokens)
     partition_idx: int
         Static index which separates conditional and target data
     padding_mask : Optional[Array]

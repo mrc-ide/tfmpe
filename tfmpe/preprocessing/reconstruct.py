@@ -45,10 +45,10 @@ def decode_pytree(
     --------
     >>> flat = jnp.array([[1.0, 2.0, 0.5]]).T
     >>> slices = {
-    ...     'mu': {'offset': 0, 'event_shape': (2,),
-    ...            'batch_shape': (1,)},
-    ...     'sigma': {'offset': 2, 'event_shape': (1,),
-    ...               'batch_shape': (1,)}
+    ...     'mu': SliceInfo(offset=0, event_shape=(2,),
+    ...                     batch_shape=(1,)),
+    ...     'sigma': SliceInfo(offset=2, event_shape=(1,),
+    ...                        batch_shape=(1,))
     ... }
     >>> result = decode_pytree(flat, slices, sample_shape=())
     >>> result['mu'].shape
@@ -141,12 +141,12 @@ def decode_pytree_keys(
     --------
     >>> flat = jnp.array([[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]]).T
     >>> slices = {
-    ...     'mu': {'offset': 0, 'event_shape': (1,),
-    ...            'batch_shape': (1,)},
-    ...     'sigma': {'offset': 1, 'event_shape': (2,),
-    ...               'batch_shape': (1,)},
-    ...     'obs': {'offset': 3, 'event_shape': (3,),
-    ...            'batch_shape': (1,)}
+    ...     'mu': SliceInfo(offset=0, event_shape=(1,),
+    ...                     batch_shape=(1,)),
+    ...     'sigma': SliceInfo(offset=1, event_shape=(2,),
+    ...                        batch_shape=(1,)),
+    ...     'obs': SliceInfo(offset=3, event_shape=(3,),
+    ...                      batch_shape=(1,))
     ... }
     >>> result = decode_pytree_keys(
     ...     flat, slices, sample_shape=(), keys=['mu', 'obs']

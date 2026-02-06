@@ -6,18 +6,6 @@ Tests verify creation of Tokens from PyTree and decoding back to PyTree.
 import jax.numpy as jnp
 from tfmpe.preprocessing import Tokens, Labeller
 
-def three_level_pytree():
-    """3-level hierarchical structure."""
-    return {
-        'global_mu': jnp.array([[1.0]]),  # (1, 1)
-        'group_mu': jnp.array([[2.0], [3.0]]),  # (2, 1)
-        'local_theta': jnp.array(
-            [[4.0], [5.0], [6.0], [7.0]]
-        ),  # (4, 1)
-        'obs': jnp.array([[0.1], [0.2], [0.3], [0.4]])  # (4, 1)
-    }
-
-
 def test_from_pytree_data_shape(simple_pytree):
     """Test that data array has correct shape."""
     tokens = Tokens.from_pytree(

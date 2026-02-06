@@ -5,7 +5,7 @@ from typing import Dict, Tuple
 import jax.numpy as jnp
 from jaxtyping import Array
 
-from tfmpe.preprocessing.utils import SliceInfo, size_along_axes
+from tfmpe.preprocessing.utils import SliceInfo
 
 def flatten_leaf(
     leaf: Array,
@@ -49,8 +49,8 @@ def flatten_leaf(
     batch_axes = tuple(
         range(len(leaf.shape) - batch_ndims, len(leaf.shape))
     )
-    flatten_evt_size = size_along_axes(leaf, event_axes)
-    batch_size = size_along_axes(leaf, batch_axes)
+    flatten_evt_size = jnp.size(leaf, axis=event_axes)
+    batch_size = jnp.size(leaf, axis=batch_axes)
 
     # Reshape to (*sample_dims, flatten_evt_size, batch_size)
     leaf_reshaped = leaf.reshape(
@@ -126,7 +126,7 @@ def flatten_pytree(
         batch_axes = tuple(
             range(len(leaf.shape) - batch_ndim, len(leaf.shape))
         )
-        batch_size = size_along_axes(leaf, batch_axes)
+        batch_size = jnp.size(leaf, axis=batch_axes)
         max_batch_size = max(max_batch_size, batch_size)
 
     # Flatten each leaf and collect metadata

@@ -24,11 +24,11 @@ def combine_tokens(tokens1: Tokens, tokens2: Tokens) -> Tokens:
     Tokens
         Combined Tokens with concatenated samples and padded tokens
 
+    Raises
+    ------
     ValueError
-        If tokens have incompatible functional_inputs
-
-    ValueError
-        If tokens have incompatible sample_ndims
+        If tokens have incompatible functional_inputs or
+        incompatible sample_ndims
 
     Notes
     -----
@@ -73,14 +73,19 @@ def combine_tokens(tokens1: Tokens, tokens2: Tokens) -> Tokens:
         tokens2.data.shape[tokens2.sample_ndims] - tokens2.partition_idx,
     )
 
-    # Get sample shapes
-    sample_ndims = len(tokens1.sample_shape)
+    sample_ndims = tokens1.sample_ndims
 
-    # Add a basic padding mask
+    # Add a basic padding mask (use replace to avoid mutating inputs)
     n_tokens1 = tokens1.data.shape[tokens1.sample_ndims]
     n_tokens2 = tokens2.data.shape[tokens2.sample_ndims]
-    tokens1.padding_mask = jnp.ones(tokens1.sample_shape + (n_tokens1,))
-    tokens2.padding_mask = jnp.ones(tokens2.sample_shape + (n_tokens2,))
+    tokens1 = dataclasses.replace(
+        tokens1,
+        padding_mask=jnp.ones(tokens1.sample_shape + (n_tokens1,))
+    )
+    tokens2 = dataclasses.replace(
+        tokens2,
+        padding_mask=jnp.ones(tokens2.sample_shape + (n_tokens2,))
+    )
 
     def split_leaf(leaf, idx, sample_ndims):
         context = lax.slice_in_dim(leaf, 0, idx, axis=sample_ndims)
