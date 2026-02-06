@@ -123,7 +123,6 @@ class Transformer(nnx.Module):
         x = self.embedding(tokens, time)
 
         # Apply encoder blocks sequentially via scan
-        @nnx.split_rngs(splits=self.config.n_encoder)
         @nnx.scan(in_axes=(nnx.Carry, 0), out_axes=nnx.Carry)
         def forward(
             x: Array,

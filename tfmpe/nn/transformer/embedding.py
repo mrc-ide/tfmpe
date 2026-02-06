@@ -57,7 +57,7 @@ class GaussianFourierEmbedding(nnx.Module):
         Array
             Embedded output, shape (..., out_dim)
         """
-        x = 2 * jnp.pi * jnp.dot(inputs, self.b.value)
+        x = 2 * jnp.pi * jnp.dot(inputs, self.b[...])
         return jnp.concatenate([
             jnp.cos(x),
             jnp.sin(x),
