@@ -10,6 +10,7 @@ from tfmpe.preprocessing.flatten import (
     flatten_leaf,
     flatten_pytree,
 )
+from tfmpe.preprocessing.reconstruct import decode_pytree
 
 @pytest.mark.parametrize(
     "sample_ndims,event_shape,batch_shape,max_batch_size",
@@ -167,22 +168,8 @@ def test_flatten_reconstruct_roundtrip(structure):
         structure, sample_ndims=0, batch_ndims=batch_ndims
     )
 
-    # Reconstruct using slices
-    reconstructed = {}
-    for key, slice_info in slices_dict.items():
-        offset = slice_info.offset
-        event_shape = slice_info.event_shape
-        batch_shape = slice_info.batch_shape
-
-        # Calculate end offset
-        event_size = int(jnp.prod(jnp.array(event_shape)))
-        end_offset = offset + event_size
-
-        # Extract slice and reshape
-        slice_data = flat_array[offset:end_offset, :batch_shape[0]]
-        reconstructed[key] = slice_data.reshape(
-            event_shape + (batch_shape[0],)
-        )
+    # Reconstruct using decode_pytree
+    reconstructed = decode_pytree(flat_array, slices_dict, sample_shape=())
 
     # Verify round-trip
     for key in structure.keys():

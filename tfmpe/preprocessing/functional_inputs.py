@@ -9,7 +9,11 @@ from jaxtyping import Array
 from .flatten import flatten_leaf
 from .utils import SliceInfo
 
-# Padding value used for non-functional inputs
+# Padding value for tokens without functional inputs. Set to a large
+# negative value because functional inputs may appear in loss function
+# computations where 0.0 could be mistaken for a real value. Other
+# token padding (data, labels, etc.) uses 0.0 and is masked out by
+# padding_mask before reaching the loss function.
 FUNCTIONAL_INPUT_PAD_VALUE = -1e8
 
 def flatten_functional_inputs(
