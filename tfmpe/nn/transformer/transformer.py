@@ -12,11 +12,10 @@ from ...preprocessing.tokens import Tokens
 
 
 class Transformer(nnx.Module):
-    """Encoder only transformer for TFMPE.
+    """Encoder-only transformer for TFMPE.
 
-    Processes context and parameter tokens through separate encoder
-    blocks with shared attention, then decoder blocks with
-    cross-attention.
+    Encodes all tokens through self-attention encoder blocks, then
+    extracts and projects target tokens to produce a vector field.
 
     Attributes
     ----------
@@ -26,8 +25,6 @@ class Transformer(nnx.Module):
         Embedding layer for token data
     encoder_blocks : nnx.Module
         Vmapped encoder blocks
-    decoder_blocks : nnx.Module
-        Vmapped decoder blocks
     output_linear : nnx.Linear
         Linear layer projecting from latent_dim to value_dim
     """
@@ -49,7 +46,7 @@ class Transformer(nnx.Module):
         Parameters
         ----------
         config : TransformerConfig
-            Configuration containing latent_dim, n_encoder, n_decoder,
+            Configuration containing latent_dim, n_encoder,
             n_heads, n_ff, label_dim, index_out_dim, dropout,
             activation
         tokens : Tokens
@@ -156,10 +153,8 @@ class Transformer(nnx.Module):
 
         Parameters
         ----------
-        context : Tokens
-            Context tokens to encode
-        params : Tokens
-            Parameter tokens to decode
+        tokens: Tokens
+            tokens to encode
         time : Array
             Time values, shape (*sample_shape,) or (*sample_shape, 1)
         deterministic : bool, optional
@@ -168,9 +163,8 @@ class Transformer(nnx.Module):
         Returns
         -------
         Array
-            Output vector field, shape matching params.data
+            Output vector field for target tokens
         """
-        # Encode context
         output = self.encode(
             tokens=tokens,
             time=time,

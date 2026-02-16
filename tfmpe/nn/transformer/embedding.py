@@ -101,6 +101,8 @@ class Embedding(nnx.Module):
             Number of distinct labels
         label_dim : int
             Embedding dimension for labels
+        pos_dim : int
+            Dimension for positional embeddings
         latent_dim : int
             Target latent dimension
         rngs : nnx.Rngs

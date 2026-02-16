@@ -11,34 +11,6 @@ from tfmpe.nn.transformer.config import TransformerConfig
 class TestTransformerInit:
     """Tests for Transformer initialization."""
 
-    def test_init_deduces_params_from_tokens(
-        self,
-        simple_tokens: Tokens,
-    ) -> None:
-        """Test that Transformer.__init__ deduces all params from
-        Tokens."""
-        config = TransformerConfig(
-            latent_dim=128,
-            n_encoder=2,
-            n_heads=8,
-            n_ff=2,
-            label_dim=32,
-            index_out_dim=64,
-            dropout=0.1,
-        )
-
-        rngs = nnx.Rngs(0)
-
-        # Initialize transformer - deduce value_dim, n_labels,
-        # functional_inputs_dim from tokens
-        transformer = Transformer(
-            config=config,
-            tokens=simple_tokens,
-            rngs=rngs,
-        )
-
-        assert transformer is not None
-
     def test_init_accepts_config_dataclass(
         self,
         simple_tokens: Tokens,
