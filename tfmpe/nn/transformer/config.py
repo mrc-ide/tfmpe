@@ -26,7 +26,7 @@ class TransformerConfig:
         Number of sequential feedforward layers in MLP blocks
     label_dim : int
         Dimension for label embeddings
-    label_dim : int
+    pos_dim : int
         Dimension for positional embeddings
     index_out_dim : int
         Output dimension for index embeddings
