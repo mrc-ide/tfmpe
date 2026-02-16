@@ -6,7 +6,6 @@ from jaxtyping import Array
 from flax import nnx
 
 from .config import TransformerConfig
-from .linear_attention import linear_attention
 
 class FFLayer(nnx.Module):
     """Single feedforward layer with linear, dropout, and activation.
@@ -183,7 +182,6 @@ class EncoderBlock(nnx.Module):
             broadcast_dropout=False,
             dropout_rate=config.dropout,
             decode=False,
-            attention_fn=linear_attention,
             rngs=rngs,
         )
         self.att_norm = nnx.LayerNorm(
