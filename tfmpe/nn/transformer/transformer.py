@@ -127,8 +127,8 @@ class Transformer(nnx.Module):
         # Apply encoder blocks sequentially via scan
         if tokens.padding_mask is not None:
             if self.config.attention == 'cudnn':
-                # Pass (batch,) seq lengths — varlen flash attention, no dense mask
-                mask = jnp.sum(tokens.padding_mask, axis=-1).astype(jnp.int32)
+                # Pass (batch,) total_tokens — varlen flash attention, no dense mask
+                mask = jnp.full(tokens.padding_mask.shape[0], tokens.total_tokens, dtype=jnp.int32)
             else:
                 # Compact key-padding mask (B, 1, 1, L); XLA broadcasts internally
                 mask = tokens.padding_mask[:, None, None, :]
