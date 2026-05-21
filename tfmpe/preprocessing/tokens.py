@@ -64,7 +64,6 @@ class Tokens:
     padding_mask: Optional[Array]
     functional_inputs: Optional[Array]
     group_id: Array
-    total_tokens: int
 
     @property
     def sample_ndims(self) -> int:
@@ -89,6 +88,31 @@ class Tokens:
             Shape of sample dimensions
         """
         return self.data.shape[:self.sample_ndims]
+
+    def attention_mask(self, attention: str) -> Optional[Array]:
+        """Build attention mask in backend-specific format.
+
+        Parameters
+        ----------
+        attention : str
+            Attention backend name (e.g. ``softmax``, ``linear``,
+            ``cudnn``).
+
+        Returns
+        -------
+        Optional[Array]
+            Mask in the expected format for the selected attention
+            backend, or ``None`` if no padding mask is present.
+        """
+        if self.padding_mask is None:
+            return None
+
+        if attention == "cudnn":
+            # Varlen flash attention expects per-sample sequence lengths.
+            return jnp.sum(self.padding_mask, axis=-1).astype(jnp.int32)
+
+        # Dense key-padding mask broadcastable to attention logits.
+        return self.padding_mask[..., None, None, :]
 
     @classmethod
     def from_pytree(
@@ -343,7 +367,6 @@ class Tokens:
             functional_inputs=func_inputs_flat,
             group_id=group_id,
             partition_idx=partition_idx,
-            total_tokens=total_tokens
         )
 
         # Capture original token count for decoder to strip padding
@@ -388,7 +411,7 @@ class Tokens:
             self.functional_inputs,
             self.group_id,
         )
-        aux_data = {"partition_idx": self.partition_idx, "total_tokens": self.total_tokens}
+        aux_data = {"partition_idx": self.partition_idx}
         return (children, aux_data)
 
     @classmethod
@@ -430,5 +453,4 @@ class Tokens:
             functional_inputs=functional_inputs,
             group_id=group_id,
             partition_idx=aux_data["partition_idx"],
-            total_tokens=aux_data["total_tokens"]
         )

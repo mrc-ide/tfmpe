@@ -302,3 +302,60 @@ def test_pad_to_even_functional_inputs(simple_pytree):
     assert tokens.functional_inputs is not None
     assert tokens.functional_inputs.shape == tokens.data.shape
     assert tokens.data.shape == (8, 1)
+
+def test_attention_mask_cudnn_lengths_with_padding():
+    """cuDNN mask should return int32 per-sample valid lengths."""
+    pytree = {
+        'a': jnp.array([[[1.0], [2.0]], [[3.0], [4.0]]]), # (2, 2, 1)
+        'b': jnp.array([[[5.0]], [[6.0]]]), # (2, 1, 1)
+    }
+
+    tokens = Tokens.from_pytree(
+        pytree,
+        condition=[],
+        sample_ndims=1,
+        batch_ndims={'a': 1, 'b': 1},
+        pad_to_even=True,
+    )
+
+    mask = tokens.attention_mask('cudnn')
+    assert mask is not None
+    assert mask.dtype == jnp.int32
+    assert mask.shape == (2,)
+    assert jnp.array_equal(mask, jnp.array([3, 3], dtype=jnp.int32))
+
+
+def test_attention_mask_dense_for_non_cudnn():
+    """Non-cuDNN attention should receive broadcastable dense mask."""
+    pytree = {
+        'a': jnp.array([[[1.0], [2.0]], [[3.0], [4.0]]]), # (2, 2, 1)
+        'b': jnp.array([[[5.0]], [[6.0]]]), # (2, 1, 1)
+    }
+
+    tokens = Tokens.from_pytree(
+        pytree,
+        condition=[],
+        sample_ndims=1,
+        batch_ndims={'a': 1, 'b': 1},
+        pad_to_even=True,
+    )
+
+    mask = tokens.attention_mask('softmax')
+    assert mask is not None
+    assert mask.shape == (2, 1, 1, 4)
+    assert jnp.array_equal(mask[:, 0, 0, :], tokens.padding_mask)
+
+
+def test_attention_mask_none_without_padding(simple_pytree):
+    """If no padding exists, attention mask should be None."""
+    tokens = Tokens.from_pytree(
+        simple_pytree,
+        condition=['obs'],
+        sample_ndims=0,
+        batch_ndims={'mu': 1, 'theta': 1, 'obs': 1},
+        pad_to_even=False,
+    )
+
+    assert tokens.padding_mask is None
+    assert tokens.attention_mask('softmax') is None
+    assert tokens.attention_mask('cudnn') is None
