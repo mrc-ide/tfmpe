@@ -301,6 +301,7 @@ class TFMPE(nnx.Module):
             labels=0,#type: ignore
             position=0,#type: ignore
             condition=0,#type: ignore
+            total_tokens=tokens.total_tokens,
             partition_idx=source_samples.partition_idx,
             padding_mask=None if source_samples.padding_mask is None else 0,#type: ignore
             functional_inputs=None if source_samples.functional_inputs is None else 0,#type: ignore

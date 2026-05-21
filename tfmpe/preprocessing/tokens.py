@@ -64,6 +64,7 @@ class Tokens:
     padding_mask: Optional[Array]
     functional_inputs: Optional[Array]
     group_id: Array
+    total_tokens: int
 
     @property
     def sample_ndims(self) -> int:
@@ -341,7 +342,8 @@ class Tokens:
             padding_mask=padding_mask,
             functional_inputs=func_inputs_flat,
             group_id=group_id,
-            partition_idx=partition_idx
+            partition_idx=partition_idx,
+            total_tokens=total_tokens
         )
 
         # Capture original token count for decoder to strip padding
@@ -386,7 +388,7 @@ class Tokens:
             self.functional_inputs,
             self.group_id,
         )
-        aux_data = {"partition_idx": self.partition_idx}
+        aux_data = {"partition_idx": self.partition_idx, "total_tokens": self.total_tokens}
         return (children, aux_data)
 
     @classmethod
@@ -427,5 +429,6 @@ class Tokens:
             padding_mask=padding_mask,
             functional_inputs=functional_inputs,
             group_id=group_id,
-            partition_idx=aux_data["partition_idx"]
+            partition_idx=aux_data["partition_idx"],
+            total_tokens=aux_data["total_tokens"]
         )
