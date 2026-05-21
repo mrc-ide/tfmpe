@@ -343,7 +343,7 @@ def test_attention_mask_dense_for_non_cudnn():
     mask = tokens.attention_mask('softmax')
     assert mask is not None
     assert mask.shape == (2, 1, 1, 4)
-    assert jnp.array_equal(mask[:, 0, 0, :], tokens.padding_mask)
+    assert jnp.array_equal(mask[:, 0, 0, :], tokens.padding_mask) #type: ignore
 
 
 def test_attention_mask_none_without_padding(simple_pytree):
